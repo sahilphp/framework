@@ -1,0 +1,64 @@
+{
+    "name": "sahilphp/framework",
+    "description": "The Sahil Framework.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["framework", "sahilphp"],
+     "authors": [
+        {
+            "name": "Idrisa John",
+            "email": "idrisajohn19@gmail.com"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/sahilphp/framework/issues",
+        "source": "https://github.com/sahilphp/framework"
+    },
+    "require": {
+        "php": "^8.2",
+        "psr/container": "^2.0",
+        "symfony/mailer": "^7.4",
+        "symfony/mime": "^7.4"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.75",
+        "phpstan/phpstan": "^2.1",
+        "phpunit/phpunit": "^12.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Sahil\\": "src/",
+            "App\\": "app/"
+        },
+        "files": [
+            "src/Support/helpers.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Sahil\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "lint": "find src tests -name '*.php' -print0 | xargs -0 -n1 -P8 php -l",
+        "test": "phpunit --colors=always",
+        "analyse": "phpstan analyse --no-progress",
+        "fix-style": "php-cs-fixer fix --config=.php-cs-fixer.dist.php",
+        "check-style": "php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff",
+        "check": [
+            "@lint",
+            "@test",
+            "@analyse"
+        ],
+        "start": "php -S 127.0.0.1:8000 -t public public/index.php"
+    },
+    "config": {
+        "sort-packages": true,
+        "optimize-autoloader": true,
+        "allow-plugins": {
+            "phpstan/extension-installer": false
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
