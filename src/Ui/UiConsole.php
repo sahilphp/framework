@@ -92,8 +92,26 @@ final class UiConsole
             ));
         }
 
-        $profile = $this->resolveProfile($basePath, $options['profile'], $options['positional'][0] ?? null);
+        $explicit = $options['profile'] ?? null;
+        $positional = $options['positional'][0] ?? null;
 
+        // Interactive prompt when no profile is selected and a TTY is available.
+        if ($explicit === null && $positional === null && !($options['no_interaction'] ?? false) && $this->isInteractive()) {
+            $positional = $this->promptInstallProfile();
+        }
+
+        $profile = $this->resolveProfile($basePath, $explicit, $positional);
+
+        // Stubs-based install: copy only the chosen UI's files, then remove
+        // the stubs so the unchosen UI can never be installed from this project.
+        $stubDir = $basePath.'/stubs/ui/'.$profile->value;
+
+        if (($profile === Profile::Tailwind || $profile === Profile::Bootstrap) && is_dir($stubDir)) {
+            return $this->installFromStubs($basePath, $profile, $options);
+        }
+
+        // Generation-based fallback (used when no UI stubs ship with the
+        // project, e.g. in framework test fixtures or older installations).
         $installOptions = new InstallOptions(
             dryRun: $options['dry_run'],
             merge: $options['merge'],
@@ -105,6 +123,96 @@ final class UiConsole
 
         foreach ($report->lines() as $line) {
             $this->line($line);
+        }
+
+        return 0;
+    }
+
+    /**
+     * Prompt the user to pick a UI framework when none was provided.
+     */
+    private function promptInstallProfile(): ?string
+    {
+        $this->line('Choose your UI framework:');
+        $this->line('  1. Tailwind CSS');
+        $this->line('  2. Bootstrap 5');
+        $this->line();
+
+        $answer = $this->readPrompt('Select UI framework [1-2]: ');
+
+        if ($answer === null) {
+            return null;
+        }
+
+        $answer = strtolower(trim($answer));
+
+        if ($answer === '1' || $answer === 'tailwind' || $answer === 'tailwindcss') {
+            return 'tailwind';
+        }
+
+        if ($answer === '2' || $answer === 'bootstrap' || $answer === 'bootstrap5') {
+            return 'bootstrap';
+        }
+
+        throw new UiException(sprintf(
+            'Invalid choice [%s]. Enter 1 for Tailwind CSS or 2 for Bootstrap 5.',
+            $answer,
+        ));
+    }
+
+    /**
+     * Install a UI profile from the project's `stubs/ui/<profile>/` tree.
+     *
+     * Views land in `resources/views`, assets in `resources/css` and
+     * `resources/js`, the manifest and Vite config at the project root. The
+     * whole `stubs/ui` tree is deleted afterwards so no trace of the
+     * unchosen UI remains.
+     */
+    private function installFromStubs(string $basePath, Profile $profile, array $options): int
+    {
+        $stubDir = $basePath.'/stubs/ui/'.$profile->value;
+
+        $this->copyStubDirectory($stubDir.'/resources/views', $basePath.'/resources/views');
+        $this->copyStubDirectory($stubDir.'/resources/css', $basePath.'/resources/css');
+        $this->copyStubDirectory($stubDir.'/resources/js', $basePath.'/resources/js');
+
+        foreach (['package.json', 'vite.config.js'] as $rootFile) {
+            $source = $stubDir.'/'.$rootFile;
+            $destination = $basePath.'/'.$rootFile;
+
+            if (is_file($source)) {
+                $this->copyFile($source, $destination);
+                $this->line(sprintf('  write   %s', $rootFile));
+            }
+        }
+
+        $this->writeUiManifest($basePath, $profile);
+
+        $this->removeStubTree($basePath.'/stubs');
+
+        $this->line();
+        $this->line(sprintf('UI framework [%s] installed.', $profile->value));
+        $this->line('  views   → resources/views');
+        $this->line('  css     → resources/css');
+        $this->line('  js      → resources/js');
+        $this->line();
+        $this->line('Next steps:');
+        $this->line('  npm install            # install frontend dependencies');
+        $this->line('  bin/sahil ui:build     # build production assets');
+
+        if (!$options['no_install'] && $this->hasNode()) {
+            $result = $this->runner()->run(['npm', 'install'], $basePath);
+
+            if (!$result->successful()) {
+                $this->emitProcessOutput($result);
+
+                return 1;
+            }
+
+            $this->emitProcessOutput($result);
+            $this->line('Dependencies installed. Run `bin/sahil ui:build` to build assets.');
+        } elseif (!$options['no_install']) {
+            $this->line('Node.js was not found; skipping `npm install`. Run it manually when Node is available.');
         }
 
         return 0;
@@ -379,6 +487,7 @@ final class UiConsole
                     break;
                 case '--path':
                 case '--profile':
+                case '--ui':
                 case '--source':
                 case '--host':
                 case '--port':
@@ -393,7 +502,7 @@ final class UiConsole
                         $index++;
                     }
 
-                    $key = substr($name, 2);
+                    $key = $name === '--ui' ? 'profile' : substr($name, 2);
                     $value = trim($value);
 
                     if ($value === '') {
@@ -401,6 +510,14 @@ final class UiConsole
                     }
 
                     $options[$key] = $value;
+
+                    break;
+                case '--no-interaction':
+                    $options['no_interaction'] = true;
+
+                    break;
+                case '--interactive':
+                    $options['no_interaction'] = false;
 
                     break;
                 default:
@@ -667,5 +784,144 @@ final class UiConsole
     private function error(string $line): void
     {
         fwrite(STDERR, $line.PHP_EOL);
+    }
+
+    /**
+     * Copy every file from `$source` into `$destination`, creating
+     * directories as needed. Existing files are overwritten.
+     */
+    private function copyStubDirectory(string $source, string $destination): void
+    {
+        if (!is_dir($source)) {
+            return;
+        }
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($source, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::SELF_FIRST
+        );
+
+        foreach ($iterator as $item) {
+            $relative = $iterator->getSubPathname();
+
+            if ($relative === '') {
+                continue;
+            }
+
+            $target = $destination.DIRECTORY_SEPARATOR.$relative;
+
+            if ($item->isDir() && !$item->isLink()) {
+                if (!is_dir($target) && !mkdir($target, 0o775, true) && !is_dir($target)) {
+                    throw new UiException(sprintf('Unable to create directory [%s].', $target));
+                }
+
+                continue;
+            }
+
+            $this->copyFile($item->getPathname(), $target);
+        }
+    }
+
+    private function copyFile(string $source, string $destination): void
+    {
+        $directory = dirname($destination);
+
+        if (!is_dir($directory) && !mkdir($directory, 0o775, true) && !is_dir($directory)) {
+            throw new UiException(sprintf('Unable to create directory [%s].', $directory));
+        }
+
+        if (!copy($source, $destination)) {
+            throw new UiException(sprintf('Unable to copy [%s] to [%s].', $source, $destination));
+        }
+    }
+
+    private function writeUiManifest(string $basePath, Profile $profile): void
+    {
+        $manifest = [
+            'profile' => $profile->value,
+            'generated_at' => gmdate('Y-m-d\TH:i:s\Z'),
+            'installed_by' => 'bin/sahil ui:install',
+        ];
+
+        $json = json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        if ($json === false) {
+            throw new UiException('Unable to encode the .sahil-ui.json manifest.');
+        }
+
+        $this->writeFileAtomic($basePath.'/.sahil-ui.json', $json."\n");
+    }
+
+    private function removeStubTree(string $stubsDir): void
+    {
+        if (!is_dir($stubsDir)) {
+            return;
+        }
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($stubsDir, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+
+        foreach ($iterator as $item) {
+            $path = $item->getPathname();
+
+            if ($item->isDir() && !$item->isLink()) {
+                @rmdir($path);
+
+                continue;
+            }
+
+            @unlink($path);
+        }
+
+        @rmdir($stubsDir);
+    }
+
+    private function writeFileAtomic(string $path, string $contents): void
+    {
+        $temporary = $path.'.tmp-'.bin2hex(random_bytes(4));
+        $written = @file_put_contents($temporary, $contents);
+
+        if ($written === false || $written !== strlen($contents)) {
+            @unlink($temporary);
+
+            throw new UiException(sprintf('Unable to write [%s].', $path));
+        }
+
+        if (!@rename($temporary, $path)) {
+            @unlink($temporary);
+
+            throw new UiException(sprintf('Unable to replace [%s].', $path));
+        }
+    }
+
+    private function hasNode(): bool
+    {
+        $command = PHP_OS_FAMILY === 'windows' ? 'where' : 'command -v';
+
+        exec(sprintf('%s node 2>/dev/null', $command), $output, $exitCode);
+
+        return $exitCode === 0 && $output !== [];
+    }
+
+    private function isInteractive(): bool
+    {
+        return defined('STDIN')
+            && function_exists('stream_isatty')
+            && @stream_isatty(STDIN);
+    }
+
+    private function readPrompt(string $prompt): ?string
+    {
+        fwrite(STDOUT, $prompt);
+
+        $line = @fgets(STDIN);
+
+        if ($line === false) {
+            return null;
+        }
+
+        return rtrim($line, "\r\n");
     }
 }
