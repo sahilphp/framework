@@ -87,6 +87,19 @@ final class ProfileTest extends TestCase
         self::assertSame(['vite' => '^8.3.5'], Profile::None->dependencies());
     }
 
+    public function test_generated_vite_config_does_not_watch_runtime_state(): void
+    {
+        foreach (Profile::cases() as $profile) {
+            $config = ProfilePlan::build($profile)->files['vite.config.js'];
+
+            self::assertStringContainsString('watch:', $config, $profile->value);
+            self::assertStringContainsString("'**/storage/**'", $config, $profile->value);
+            self::assertStringContainsString("'**/public/build/**'", $config, $profile->value);
+            self::assertStringContainsString("'**/vendor/**'", $config, $profile->value);
+            self::assertStringContainsString("'**/node_modules/**'", $config, $profile->value);
+        }
+    }
+
     public function test_profile_aliases_resolve(): void
     {
         self::assertSame(Profile::Tailwind, Profile::resolve('tailwindcss'));

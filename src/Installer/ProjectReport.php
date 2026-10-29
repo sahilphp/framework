@@ -79,9 +79,9 @@ final class ProjectReport
             $lines[] = '  npm install';
         }
 
-        $lines[] = '  php bin/sahil about';
-        $lines[] = '  php bin/sahil ui:build';
-        $lines[] = '  composer start';
+        $lines[] = '  php sahil about';
+        $lines[] = '  php sahil ui:build';
+        $lines[] = '  php sahil start';
 
         return $lines;
     }

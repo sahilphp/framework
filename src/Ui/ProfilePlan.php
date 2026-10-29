@@ -130,6 +130,18 @@ final class ProfilePlan
               server: {
                 host: '127.0.0.1',
                 port: 5173,
+                watch: {
+                  // Runtime state (logs, sessions, compiled views) and this
+                  // server's own cache are rewritten while the application
+                  // serves requests. Watching them reloads the page in a loop.
+                  ignored: [
+                    '**/node_modules/**',
+                    '**/.git/**',
+                    '**/storage/**',
+                    '**/public/build/**',
+                    '**/vendor/**',
+                  ],
+                },
               },
             });
 
