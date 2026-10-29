@@ -55,7 +55,7 @@ final class ExpressionCompiler
         if (!$this->isAtEnd()) {
             throw $this->error(sprintf(
                 'Unexpected [%s] after a complete expression.',
-                $this->current()['value']
+                $this->current()['value'],
             ));
         }
 
@@ -148,7 +148,7 @@ final class ExpressionCompiler
                 ? 'Templates cannot contain PHP variables; read data by name instead, e.g. `post.title`.'
                 : sprintf(
                     'Unexpected character [%s] in expression; templates cannot contain PHP syntax.',
-                    $character
+                    $character,
                 ));
         }
 
@@ -517,7 +517,7 @@ final class ExpressionCompiler
             throw $this->error(sprintf(
                 'Unknown function [%s]. Available: %s. Compute other values in the controller instead.',
                 $name,
-                implode(', ', array_keys(self::FUNCTIONS))
+                implode(', ', array_keys(self::FUNCTIONS)),
             ));
         }
 
@@ -542,7 +542,7 @@ final class ExpressionCompiler
                 $name,
                 $expected,
                 $expected === 1 ? '' : 's',
-                count($arguments)
+                count($arguments),
             ));
         }
 

@@ -20,7 +20,7 @@ final class DestructiveOperationException extends RuntimeException
         return new self(sprintf(
             'Refusing [%s]: %s',
             $operation,
-            $reason
+            $reason,
         ));
     }
 
@@ -32,7 +32,7 @@ final class DestructiveOperationException extends RuntimeException
         return self::refused($operation, sprintf(
             'this is a destructive operation and the application runs in [%s]; '
             .'re-run with --force once you have a verified backup',
-            $environment
+            $environment,
         ));
     }
 
@@ -49,7 +49,7 @@ final class DestructiveOperationException extends RuntimeException
         return self::refused($operation, sprintf(
             'these migrations are forward-only and cannot be reversed: %s. '
             .'Implement down() on them, or pass --force to roll back the reversible migrations and leave these applied',
-            implode(', ', $irreversible)
+            implode(', ', $irreversible),
         ));
     }
 }

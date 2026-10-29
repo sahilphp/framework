@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Sahil\Support;
 
 use RuntimeException;
-use Sahil\Container\Container;
-use Throwable;
 
 /**
  * Loads environment variables from a `.env` file into an isolated map.

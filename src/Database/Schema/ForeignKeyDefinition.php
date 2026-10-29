@@ -119,7 +119,7 @@ final class ForeignKeyDefinition
         if ($this->referencesColumn === null || $this->onTable === null) {
             throw new SchemaException(sprintf(
                 'Foreign key on column [%s] is incomplete; call references(<column>) and on(<table>).',
-                $this->column
+                $this->column,
             ));
         }
     }
@@ -133,7 +133,7 @@ final class ForeignKeyDefinition
             throw new SchemaException(sprintf(
                 'Unsupported referential action [%s]; supported: %s.',
                 $action,
-                implode(', ', self::ACTIONS)
+                implode(', ', self::ACTIONS),
             ));
         }
 

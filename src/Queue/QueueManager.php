@@ -62,7 +62,7 @@ final class QueueManager implements DispatcherContract
             throw new QueueException(sprintf(
                 'Unsupported queue driver [%s] on connection [%s]; only [database] is available.',
                 $driver,
-                $name
+                $name,
             ));
         }
 
@@ -99,7 +99,7 @@ final class QueueManager implements DispatcherContract
             throw new QueueException(sprintf(
                 'Job [%s] cannot be queued: %s',
                 $job::class,
-                $failure->getMessage()
+                $failure->getMessage(),
             ));
         }
     }

@@ -133,7 +133,7 @@ final class QueryBuilder
                 throw new InvalidArgumentException(sprintf(
                     'Column [%s] references unknown table/alias [%s]; register it with table()/as()/join().',
                     $column,
-                    $prefix
+                    $prefix,
                 ));
             }
         }
@@ -160,7 +160,7 @@ final class QueryBuilder
     {
         if ($column instanceof Expression) {
             throw new InvalidArgumentException(
-                'Use whereRaw() for SQL expressions; where() binds values only.'
+                'Use whereRaw() for SQL expressions; where() binds values only.',
             );
         }
 
@@ -179,7 +179,7 @@ final class QueryBuilder
     {
         if ($value instanceof Expression) {
             throw new InvalidArgumentException(
-                'Use whereRaw() for SQL expressions; where() binds values only.'
+                'Use whereRaw() for SQL expressions; where() binds values only.',
             );
         }
 
@@ -187,7 +187,7 @@ final class QueryBuilder
             throw new InvalidArgumentException(sprintf(
                 'Unsupported comparison operator [%s]; supported: %s (see also whereIn/whereNull).',
                 $operator,
-                implode(', ', self::COMPARISON_OPERATORS)
+                implode(', ', self::COMPARISON_OPERATORS),
             ));
         }
 
@@ -236,7 +236,7 @@ final class QueryBuilder
                 '%s %sIN (%s)',
                 $this->connection->driver()->quoteIdentifier($column),
                 $negated ? 'NOT ' : '',
-                $placeholders
+                $placeholders,
             ),
             'params' => $values,
             'column' => $column,
@@ -256,7 +256,7 @@ final class QueryBuilder
             'sql' => sprintf(
                 '%s IS %sNULL',
                 $this->connection->driver()->quoteIdentifier($column),
-                $negated ? 'NOT ' : ''
+                $negated ? 'NOT ' : '',
             ),
             'params' => [],
             'column' => $column,
@@ -280,7 +280,7 @@ final class QueryBuilder
         foreach ($bindings as $index => $binding) {
             if (is_array($binding)) {
                 throw new InvalidArgumentException(
-                    sprintf('Array binding at index [%s] is not supported.', $index)
+                    sprintf('Array binding at index [%s] is not supported.', $index),
                 );
             }
         }
@@ -330,7 +330,7 @@ final class QueryBuilder
 
         if (!in_array($direction, ['ASC', 'DESC'], true)) {
             throw new InvalidArgumentException(
-                sprintf('Order direction must be ASC or DESC, got [%s].', $direction)
+                sprintf('Order direction must be ASC or DESC, got [%s].', $direction),
             );
         }
 
@@ -383,7 +383,7 @@ final class QueryBuilder
                 static fn (string|Expression $column): string => $column instanceof Expression
                     ? '('.$column->sql.')'
                     : $driver->quoteIdentifier($column),
-                $this->columns
+                $this->columns,
             ));
 
         $sql = 'SELECT '.$columns.' FROM '.$driver->quoteIdentifier($this->identifier);
@@ -398,7 +398,7 @@ final class QueryBuilder
                 strtoupper($join['type']),
                 $driver->quoteIdentifier($join['table']),
                 $driver->quoteIdentifier($join['left']),
-                $driver->quoteIdentifier($join['right'])
+                $driver->quoteIdentifier($join['right']),
             );
         }
 
@@ -412,7 +412,7 @@ final class QueryBuilder
             $sql .= ' ORDER BY '.implode(', ', array_map(
                 static fn (array $order): string => $driver->quoteIdentifier($order['column'])
                     .' '.$order['direction'],
-                $this->orders
+                $this->orders,
             ));
         }
 
@@ -503,7 +503,7 @@ final class QueryBuilder
                 strtoupper($join['type']),
                 $driver->quoteIdentifier($join['table']),
                 $driver->quoteIdentifier($join['left']),
-                $driver->quoteIdentifier($join['right'])
+                $driver->quoteIdentifier($join['right']),
             );
         }
 
@@ -574,7 +574,7 @@ final class QueryBuilder
 
             if (is_array($value)) {
                 throw new InvalidArgumentException(
-                    sprintf('UPDATE value for [%s] must not be an array; flatten it.', $column)
+                    sprintf('UPDATE value for [%s] must not be an array; flatten it.', $column),
                 );
             }
 
@@ -588,7 +588,7 @@ final class QueryBuilder
             'UPDATE '.$driver->quoteIdentifier($this->identifier)
                 .' SET '.implode(', ', $assignments)
                 .' WHERE '.$where,
-            [...$params, ...$whereParams]
+            [...$params, ...$whereParams],
         );
     }
 
@@ -624,7 +624,7 @@ final class QueryBuilder
 
             if (is_array($value)) {
                 throw new InvalidArgumentException(
-                    sprintf('INSERT value for [%s] must not be an array.', $column)
+                    sprintf('INSERT value for [%s] must not be an array.', $column),
                 );
             }
 
@@ -635,7 +635,7 @@ final class QueryBuilder
         return $this->connection->execute(
             'INSERT INTO '.$driver->quoteIdentifier($this->identifier)
                 .' ('.implode(', ', $columns).') VALUES ('.implode(', ', $placeholders).')',
-            $params
+            $params,
         );
     }
 
@@ -655,7 +655,7 @@ final class QueryBuilder
         return $this->connection->execute(
             'DELETE FROM '.$this->connection->driver()->quoteIdentifier($this->identifier)
                 .' WHERE '.$where,
-            $whereParams
+            $whereParams,
         );
     }
 }

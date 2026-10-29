@@ -68,7 +68,7 @@ final class MigrationLoaderTest extends TestCase
         self::assertSame(
             ['2026_01_01_000000_first', '2026_01_02_000000_second', '2026_01_03_000000_third'],
             array_map(static fn ($migration): string => $migration->name, $loaded),
-            'file names are the execution order'
+            'file names are the execution order',
         );
     }
 

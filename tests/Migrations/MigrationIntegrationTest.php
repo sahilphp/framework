@@ -275,7 +275,7 @@ final class MigrationIntegrationTest extends TestCase
         $report = $migrator->migrate();
         self::assertSame(
             ['2026_01_01_000000_create_it_teams', '2026_01_02_000000_create_it_users'],
-            $report->applied
+            $report->applied,
         );
         self::assertTrue($report->changed());
         self::assertTrue($this->schema($connection)->hasTable('it_users'));
@@ -313,7 +313,7 @@ final class MigrationIntegrationTest extends TestCase
         $rolledBack = $migrator->rollback(force: true);
         self::assertSame(
             ['2026_01_02_000000_create_it_users', '2026_01_01_000000_create_it_teams'],
-            $rolledBack->rolledBack
+            $rolledBack->rolledBack,
         );
         self::assertFalse($this->schema($connection)->hasTable('it_users'), 'rollback drops what up() created');
         self::assertFalse($this->schema($connection)->hasTable('it_teams'));
@@ -388,12 +388,12 @@ final class MigrationIntegrationTest extends TestCase
         if ($connection->driver()->supportsTransactionalDdl()) {
             self::assertFalse(
                 $this->schema($connection)->hasTable('it_partial'),
-                'transactional DDL must leave no partial schema behind'
+                'transactional DDL must leave no partial schema behind',
             );
         } else {
             self::assertTrue(
                 $this->schema($connection)->hasTable('it_partial'),
-                'MySQL cannot roll DDL back — the partial table survives, which is exactly why the report warns about it'
+                'MySQL cannot roll DDL back — the partial table survives, which is exactly why the report warns about it',
             );
         }
 
@@ -465,7 +465,7 @@ final class MigrationIntegrationTest extends TestCase
 
         self::assertFalse(
             $this->schema($connection)->hasTable('it_teams'),
-            'a refused run must not touch the database at all'
+            'a refused run must not touch the database at all',
         );
 
         // production + the documented force flag
@@ -714,7 +714,7 @@ final class MigrationIntegrationTest extends TestCase
         self::assertStringContainsString('ledger record forgotten', $report->skipped[0]);
         self::assertSame(
             ['2026_01_02_000000_create_it_users', '2026_01_01_000000_create_it_teams'],
-            $report->rolledBack
+            $report->rolledBack,
         );
         self::assertSame([], $services['repository']->batches(), 'the ledger is emptied');
         self::assertFalse($this->schema($connection)->hasTable('it_users'));
@@ -806,7 +806,7 @@ final class MigrationIntegrationTest extends TestCase
 
         self::assertNull(
             $connection->table('it_users')->where('email', '=', 'rolled-back@example.test')->first(),
-            'a failed seeder must not persist partial rows'
+            'a failed seeder must not persist partial rows',
         );
 
         $connection->disconnect();

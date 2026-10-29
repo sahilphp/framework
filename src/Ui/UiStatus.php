@@ -100,7 +100,7 @@ final class UiStatus
         if ($missingSources !== []) {
             $issues[] = sprintf(
                 'Missing generated source file(s): %s. Re-run `bin/sahil ui:install`.',
-                implode(', ', $missingSources)
+                implode(', ', $missingSources),
             );
         }
 
@@ -108,21 +108,21 @@ final class UiStatus
             $issues[] = sprintf(
                 'Missing npm package(s): %s. Run `bin/sahil ui:install` or `%s install`.',
                 implode(', ', $missingPackages),
-                $toolchain->packageManager ?? 'npm'
+                $toolchain->packageManager ?? 'npm',
             );
         }
 
         if ($missingAssets !== []) {
             $issues[] = sprintf(
                 'Missing build output(s): %s. Run `bin/sahil ui:build`.',
-                implode(', ', $missingAssets)
+                implode(', ', $missingAssets),
             );
         }
 
         if ($staleAssets !== []) {
             $issues[] = sprintf(
                 'Build output is older than the source file(s) it was built from: %s. Run `bin/sahil ui:build`.',
-                implode(', ', $staleAssets)
+                implode(', ', $staleAssets),
             );
         }
 

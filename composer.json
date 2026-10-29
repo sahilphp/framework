@@ -10,20 +10,27 @@
             "email": "idrisajohn19@gmail.com"
         }
     ],
+    "homepage": "https://github.com/sahilphp/framework",
     "support": {
         "issues": "https://github.com/sahilphp/framework/issues",
         "source": "https://github.com/sahilphp/framework"
     },
     "require": {
-        "php": "^8.4",
+        "php": "^8.1",
         "psr/container": "^2.0",
-        "symfony/mailer": "^7.4",
-        "symfony/mime": "^7.4"
+        "symfony/mailer": "^6.4 || ^7.1",
+        "symfony/mime": "^6.4 || ^7.1"
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.75",
         "phpstan/phpstan": "^2.1",
-        "phpunit/phpunit": "^12.0"
+        "phpunit/phpunit": "^10.5"
+    },
+    "suggest": {
+        "ext-json": "JSON encoding is used by configuration, cache and queue payloads",
+        "ext-mbstring": "Multibyte-aware validation and string helpers (a polyfill is used otherwise)",
+        "ext-openssl": "TLS/SSL SMTP transport and the Encrypter",
+        "ext-pdo": "Database, ORM and migration support"
     },
     "autoload": {
         "psr-4": {
@@ -53,6 +60,9 @@
     "config": {
         "sort-packages": true,
         "optimize-autoloader": true,
+        "platform": {
+            "php": "8.1.0"
+        },
         "allow-plugins": {
             "phpstan/extension-installer": false
         }

@@ -7,8 +7,6 @@ namespace Sahil\Tests\Container;
 use PHPUnit\Framework\TestCase;
 use Sahil\Container\BindingException;
 use Sahil\Container\Container;
-use Sahil\Container\NotFoundException;
-use Sahil\Contracts\Container\ScopeContract;
 
 final class ScopeTest extends TestCase
 {

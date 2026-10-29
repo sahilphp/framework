@@ -69,7 +69,7 @@ final class Toolchain
                 $this->lockFile,
                 $this->packageManager,
                 $this->packageManager,
-                $this->packageManager
+                $this->packageManager,
             );
         } elseif (!$this->hasPackageManager()) {
             $issues[] = 'No package manager was found on PATH. npm ships with Node.js; '

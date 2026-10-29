@@ -183,7 +183,7 @@ final class SessionTest extends TestCase
         // Start a new session instance from a request with the cookie
         $request = Request::fromGlobals(
             server: ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/test'],
-            cookies: ['test_session' => $id]
+            cookies: ['test_session' => $id],
         );
 
         $newSession = new Session($this->driver);
@@ -201,7 +201,7 @@ final class SessionTest extends TestCase
 
         $request = Request::fromGlobals(
             server: ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/test'],
-            cookies: ['test_session' => 'invalid-id']
+            cookies: ['test_session' => 'invalid-id'],
         );
 
         $session->startFromRequest($request);
@@ -228,7 +228,7 @@ final class SessionTest extends TestCase
         // Start from request with expired session
         $request = Request::fromGlobals(
             server: ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/test'],
-            cookies: ['test_session' => $id]
+            cookies: ['test_session' => $id],
         );
 
         $newSession = new Session($this->driver, lifetime: 60);
@@ -245,7 +245,7 @@ final class SessionTest extends TestCase
         $session = new Session($this->driver);
         $session->setName('test_session');
         $session->startFromRequest(Request::fromGlobals(
-            server: ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/test']
+            server: ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/test'],
         ));
 
         $response = Response::text('test');
@@ -265,7 +265,7 @@ final class SessionTest extends TestCase
         $session = new Session($this->driver, secure: true);
         $session->setName('test_session');
         $session->startFromRequest(Request::fromGlobals(
-            server: ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/test']
+            server: ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/test'],
         ));
 
         $response = Response::text('test');
@@ -330,7 +330,7 @@ final class SessionTest extends TestCase
         $newSession = new Session($this->driver);
         $newSession->startFromRequest(Request::fromGlobals(
             server: ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/test'],
-            cookies: ['sahil_session' => $id]
+            cookies: ['sahil_session' => $id],
         ));
 
         $this->assertSame('value', $newSession->get('key'));

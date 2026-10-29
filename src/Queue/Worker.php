@@ -45,6 +45,8 @@ final class Worker
         private readonly int $retryDelay = 0,
         private readonly int $sleep = 1,
         ?Closure $clock = null,
+        /** @var list<class-string> $allowedJobClasses */
+        private readonly array $allowedJobClasses = [],
     ) {
         $this->clock = $clock ?? static fn (): DateTimeImmutable => new DateTimeImmutable('now', new DateTimeZone('UTC'));
     }
@@ -151,7 +153,13 @@ final class Worker
         set_error_handler(static fn (): bool => true);
 
         try {
-            $job = unserialize($payload);
+            // Object injection guard: a configured allow-list restricts the
+            // classes a payload may instantiate. Leaving it empty keeps the
+            // historical behaviour, where queue rows are trusted application
+            // data — see `queue.allowed_jobs` in the starter kit.
+            $job = $this->allowedJobClasses === []
+                ? unserialize($payload)
+                : unserialize($payload, ['allowed_classes' => $this->allowedJobClasses]);
         } catch (Throwable) {
             return null;
         } finally {

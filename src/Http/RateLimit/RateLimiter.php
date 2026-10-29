@@ -21,8 +21,6 @@ final class RateLimiter
 
     /**
      * Record an attempt and return the gate result.
-     *
-     * @return RateLimitResult{allowed: bool, remaining: int, retryAfter: int}
      */
     public function check(string $key): RateLimitResult
     {

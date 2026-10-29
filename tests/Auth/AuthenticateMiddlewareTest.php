@@ -47,7 +47,7 @@ final class AuthenticateMiddlewareTest extends TestCase
         $middleware = new Authenticate($auth);
 
         $request = Request::fromGlobals(
-            server: ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/account']
+            server: ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/account'],
         );
 
         $handlerRan = false;
@@ -70,7 +70,7 @@ final class AuthenticateMiddlewareTest extends TestCase
 
         $middleware = new Authenticate($auth);
         $request = Request::fromGlobals(
-            server: ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/account']
+            server: ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/account'],
         );
 
         $response = $middleware->handle($request, static fn (Request $r): Response => Response::text('account details'));
@@ -85,7 +85,7 @@ final class AuthenticateMiddlewareTest extends TestCase
         $middleware = new Authenticate($auth);
 
         $request = Request::fromGlobals(
-            server: ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/account']
+            server: ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/account'],
         );
 
         $response = $middleware->handle($request, static fn (Request $r): Response => Response::text('secret page'));

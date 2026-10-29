@@ -158,8 +158,8 @@ final class HeaderBag implements Countable, IteratorAggregate
             throw new InvalidArgumentException(
                 sprintf(
                     'Invalid HTTP header name: names must be ASCII tokens of letters, digits, dashes and underscores, got [%s].',
-                    $name
-                )
+                    $name,
+                ),
             );
         }
     }
@@ -182,7 +182,7 @@ final class HeaderBag implements Countable, IteratorAggregate
         foreach ($list as $value) {
             if (!is_scalar($value)) {
                 throw new InvalidArgumentException(
-                    sprintf('Header values must be scalar; [%s] contains a non-scalar entry.', $nameOfContext ?? 'header')
+                    sprintf('Header values must be scalar; [%s] contains a non-scalar entry.', $nameOfContext ?? 'header'),
                 );
             }
 
@@ -194,8 +194,8 @@ final class HeaderBag implements Countable, IteratorAggregate
                 throw new InvalidArgumentException(
                     sprintf(
                         'Invalid value for header [%s]: values must not contain CR, LF, NUL or control characters.',
-                        $nameOfContext ?? 'header'
-                    )
+                        $nameOfContext ?? 'header',
+                    ),
                 );
             }
 

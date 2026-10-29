@@ -213,7 +213,7 @@ final class TemplateCompiler
                 throw new ViewSyntaxException(
                     $this->template,
                     $this->line,
-                    'PHP tags are not allowed in a template; compute the value in the controller and pass it in, or use a value echo'
+                    'PHP tags are not allowed in a template; compute the value in the controller and pass it in, or use a value echo',
                 );
             }
 
@@ -291,7 +291,7 @@ final class TemplateCompiler
                 throw new ViewSyntaxException(
                     $this->template,
                     $tagLine,
-                    sprintf('Unclosed output tag %s ... %s', $opener, $closer)
+                    sprintf('Unclosed output tag %s ... %s', $opener, $closer),
                 );
             }
 
@@ -345,8 +345,8 @@ final class TemplateCompiler
                 $tagLine,
                 sprintf(
                     '@%s is not supported: templates cannot contain PHP. Compute the value in the controller and pass it in',
-                    $name
-                )
+                    $name,
+                ),
             );
         }
 
@@ -364,7 +364,7 @@ final class TemplateCompiler
                 throw new ViewSyntaxException(
                     $this->template,
                     $tagLine,
-                    sprintf('@%s does not take arguments.', $name)
+                    sprintf('@%s does not take arguments.', $name),
                 );
             }
         } else {
@@ -404,7 +404,7 @@ final class TemplateCompiler
                     throw new ViewSyntaxException(
                         $this->template,
                         $line,
-                        sprintf('Unterminated string literal inside @%s(...)', $name)
+                        sprintf('Unterminated string literal inside @%s(...)', $name),
                     );
                 }
 
@@ -517,7 +517,7 @@ final class TemplateCompiler
             'if' => $this->openBlock('if', $line, sprintf("if (%s):\n", $this->expression($arguments, '@if', $line))),
             'elseif' => $this->insideBlock('if', $line, '@elseif', sprintf(
                 "elseif (%s):\n",
-                $this->expression($arguments, '@elseif', $line)
+                $this->expression($arguments, '@elseif', $line),
             )),
             'else' => $this->insideBlock('if', $line, '@else', "else:\n"),
             'endif' => $this->closeBlock('if', $line, '@endif', "endif;\n"),
@@ -554,7 +554,7 @@ final class TemplateCompiler
             throw new ViewSyntaxException(
                 $this->template,
                 $line,
-                '@foreach expects `@foreach (items as item)` or `@foreach (items as key => item)`'
+                '@foreach expects `@foreach (items as item)` or `@foreach (items as key => item)`',
             );
         }
 
@@ -574,7 +574,7 @@ final class TemplateCompiler
             throw new ViewSyntaxException(
                 $this->template,
                 $line,
-                '@foreach expects a binding after `as`, e.g. `@foreach (items as item)`'
+                '@foreach expects a binding after `as`, e.g. `@foreach (items as item)`',
             );
         }
 
@@ -591,7 +591,7 @@ final class TemplateCompiler
                 "foreach (\\%s::iterate(%s) as %s):\n",
                 ViewHelpers::class,
                 $iterable,
-                $valueVariable
+                $valueVariable,
             );
         } else {
             $keyVariable = '$__loopKey'.$counter;
@@ -601,7 +601,7 @@ final class TemplateCompiler
                 ViewHelpers::class,
                 $iterable,
                 $keyVariable,
-                $valueVariable
+                $valueVariable,
             );
 
             $bindings[] = [$keyName, $keyVariable];
@@ -625,7 +625,7 @@ final class TemplateCompiler
             throw new ViewSyntaxException(
                 $this->template,
                 $line,
-                '@endforeach without a matching open block (expected inside @foreach)'
+                '@endforeach without a matching open block (expected inside @foreach)',
             );
         }
 
@@ -649,7 +649,7 @@ final class TemplateCompiler
                 throw new ViewSyntaxException(
                     $this->template,
                     $line,
-                    "@section accepts a name and an optional true/false, or use @parent inside the block"
+                    '@section accepts a name and an optional true/false, or use @parent inside the block',
                 );
             }
 
@@ -659,7 +659,7 @@ final class TemplateCompiler
         return $this->openBlock(
             'section',
             $line,
-            sprintf("\$__ctx->startSection(%s, %s);\n", $this->templateLiteral($name, '@section', $line), $parent)
+            sprintf("\$__ctx->startSection(%s, %s);\n", $this->templateLiteral($name, '@section', $line), $parent),
         );
     }
 
@@ -676,7 +676,7 @@ final class TemplateCompiler
         return sprintf(
             "echo \$__ctx->yieldSection(%s, %s);\n",
             $template,
-            $this->expression($rest, '@yield', $line)
+            $this->expression($rest, '@yield', $line),
         );
     }
 
@@ -688,7 +688,7 @@ final class TemplateCompiler
             throw new ViewSyntaxException(
                 $this->template,
                 $line,
-                '@include accepts a name and an optional data array: @include(\'partial\', [\'key\' => value])'
+                '@include accepts a name and an optional data array: @include(\'partial\', [\'key\' => value])',
             );
         }
 
@@ -714,7 +714,7 @@ final class TemplateCompiler
             throw new ViewSyntaxException(
                 $this->template,
                 $line,
-                sprintf('%s accepts an entry name and an optional attributes array.', $directive)
+                sprintf('%s accepts an entry name and an optional attributes array.', $directive),
             );
         }
 
@@ -738,7 +738,7 @@ final class TemplateCompiler
             throw new ViewSyntaxException(
                 $this->template,
                 $line,
-                sprintf('%s expects an array literal such as [\'key\' => value].', $directive)
+                sprintf('%s expects an array literal such as [\'key\' => value].', $directive),
             );
         }
 
@@ -790,7 +790,7 @@ final class TemplateCompiler
         throw new ViewSyntaxException(
             $this->template,
             $line,
-            sprintf('%s array keys must be plain names or quoted strings, got [%s].', $directive, $source)
+            sprintf('%s array keys must be plain names or quoted strings, got [%s].', $directive, $source),
         );
     }
 
@@ -807,7 +807,7 @@ final class TemplateCompiler
             throw new ViewSyntaxException(
                 $this->template,
                 $line,
-                sprintf("%s expects a quoted template name such as 'layouts.app', got [%s].", $directive, $trimmed)
+                sprintf("%s expects a quoted template name such as 'layouts.app', got [%s].", $directive, $trimmed),
             );
         }
 
@@ -857,7 +857,7 @@ final class TemplateCompiler
             throw new ViewSyntaxException(
                 $this->template,
                 $line,
-                sprintf('%s requires arguments in parentheses.', $directive)
+                sprintf('%s requires arguments in parentheses.', $directive),
             );
         }
 
@@ -874,8 +874,8 @@ final class TemplateCompiler
                     '%s bindings are names, not PHP variables: write `as %s` instead of `as %s`.',
                     $directive,
                     ltrim($binding, '$'),
-                    $binding
-                )
+                    $binding,
+                ),
             );
         }
 
@@ -883,7 +883,7 @@ final class TemplateCompiler
             throw new ViewSyntaxException(
                 $this->template,
                 $line,
-                sprintf('%s expects a plain name like `item`, got [%s].', $directive, $binding)
+                sprintf('%s expects a plain name like `item`, got [%s].', $directive, $binding),
             );
         }
 
@@ -891,7 +891,7 @@ final class TemplateCompiler
             throw new ViewSyntaxException(
                 $this->template,
                 $line,
-                sprintf('[%s] cannot be a binding name (%s uses it as a keyword).', $binding, $directive)
+                sprintf('[%s] cannot be a binding name (%s uses it as a keyword).', $binding, $directive),
             );
         }
     }
@@ -911,7 +911,7 @@ final class TemplateCompiler
             throw new ViewSyntaxException(
                 $this->template,
                 $line,
-                sprintf('%s without a matching open block (expected inside @%s)', $directive, $kind)
+                sprintf('%s without a matching open block (expected inside @%s)', $directive, $kind),
             );
         }
 
@@ -926,7 +926,7 @@ final class TemplateCompiler
             throw new ViewSyntaxException(
                 $this->template,
                 $line,
-                sprintf('%s is only valid inside an open @%s block', $directive, $kind)
+                sprintf('%s is only valid inside an open @%s block', $directive, $kind),
             );
         }
 
@@ -951,7 +951,7 @@ final class TemplateCompiler
         throw new ViewSyntaxException(
             $this->template,
             $current['line'],
-            sprintf('Unclosed @%s block (no matching @end%s)', $current['name'], $current['name'])
+            sprintf('Unclosed @%s block (no matching @end%s)', $current['name'], $current['name']),
         );
     }
 
@@ -1086,7 +1086,7 @@ final class TemplateCompiler
             $hash,
             str_replace('*/', '* /', $template),
             str_replace('*/', '* /', $source),
-            $body
+            $body,
         );
 
         // Write-then-rename: a concurrent reader never sees a half file.

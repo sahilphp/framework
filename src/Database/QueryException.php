@@ -22,7 +22,7 @@ final class QueryException extends RuntimeException
         private readonly string $driverError,
     ) {
         parent::__construct(
-            sprintf('Query failed (%s): %s', $driverError, $sql)
+            sprintf('Query failed (%s): %s', $driverError, $sql),
         );
     }
 

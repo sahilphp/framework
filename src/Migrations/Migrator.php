@@ -56,18 +56,18 @@ final class Migrator
         $batches = $this->repository->batches();
         $discovered = array_map(
             static fn (DiscoveredMigration $migration): string => $migration->name,
-            $this->loader->load()
+            $this->loader->load(),
         );
 
         $pending = array_values(array_filter(
             $discovered,
-            static fn (string $name): bool => !array_key_exists($name, $batches)
+            static fn (string $name): bool => !array_key_exists($name, $batches),
         ));
 
         // Recorded but no longer present on disk: needs operator attention.
         $missing = array_values(array_filter(
             array_keys($batches),
-            static fn (string $name): bool => !in_array($name, $discovered, true)
+            static fn (string $name): bool => !in_array($name, $discovered, true),
         ));
 
         return [
@@ -93,7 +93,7 @@ final class Migrator
             $applied = $this->repository->batches();
             $pending = array_values(array_filter(
                 $this->loader->load(),
-                static fn (DiscoveredMigration $migration): bool => !array_key_exists($migration->name, $applied)
+                static fn (DiscoveredMigration $migration): bool => !array_key_exists($migration->name, $applied),
             ));
 
             if ($pending === []) {
@@ -109,7 +109,7 @@ final class Migrator
                 $this->guard->authorise(
                     'migrate',
                     $force,
-                    sprintf('Apply %d migration(s) to %s?', count($pending), $this->guard->environment())
+                    sprintf('Apply %d migration(s) to %s?', count($pending), $this->guard->environment()),
                 );
             }
 
@@ -190,7 +190,7 @@ final class Migrator
                     'Refusing [migrate:rollback]: %d applied migration(s) have no file on disk (%s). '
                     .'Restore them, or pass --force to forget the ledger records deliberately.',
                     count($orphaned),
-                    implode(', ', $orphaned)
+                    implode(', ', $orphaned),
                 ));
             }
 
@@ -201,8 +201,8 @@ final class Migrator
                 sprintf(
                     'Roll back %d migration(s) from batch(es) %s?',
                     count($names),
-                    implode(', ', $batches)
-                )
+                    implode(', ', $batches),
+                ),
             );
 
             $rolledBack = [];
@@ -277,9 +277,9 @@ final class Migrator
                     $failure->getMessage(),
                     $transactional
                         ? ' (transaction rolled back; no schema change was kept)'
-                        : ' (WARNING: this driver cannot roll DDL back — the schema may be partially changed; inspect before retrying)'
+                        : ' (WARNING: this driver cannot roll DDL back — the schema may be partially changed; inspect before retrying)',
                 ),
-                $failure
+                $failure,
             );
         }
     }

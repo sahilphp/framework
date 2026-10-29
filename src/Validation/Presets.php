@@ -33,7 +33,7 @@ final class Presets
     {
         if (preg_match('/^[A-Za-z][A-Za-z0-9._-]*$/', $name) !== 1) {
             throw new \InvalidArgumentException(
-                sprintf('Validator preset name [%s] must be a word-token.', $name)
+                sprintf('Validator preset name [%s] must be a word-token.', $name),
             );
         }
 
@@ -47,7 +47,7 @@ final class Presets
     {
         if (!isset(self::$presets[$name])) {
             throw new \InvalidArgumentException(
-                sprintf('Validator preset [%s] is not defined.', $name)
+                sprintf('Validator preset [%s] is not defined.', $name),
             );
         }
 

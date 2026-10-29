@@ -56,7 +56,7 @@ final class Repository implements ArrayAccess
 
         if (!is_bool($value)) {
             throw new ConfigurationException(
-                sprintf('Configuration key [%s] must be a boolean, got %s.', $key, get_debug_type($value))
+                sprintf('Configuration key [%s] must be a boolean, got %s.', $key, get_debug_type($value)),
             );
         }
 
@@ -72,7 +72,7 @@ final class Repository implements ArrayAccess
 
         if (!is_int($value)) {
             throw new ConfigurationException(
-                sprintf('Configuration key [%s] must be an integer, got %s.', $key, get_debug_type($value))
+                sprintf('Configuration key [%s] must be an integer, got %s.', $key, get_debug_type($value)),
             );
         }
 
@@ -88,7 +88,7 @@ final class Repository implements ArrayAccess
 
         if (!is_string($value)) {
             throw new ConfigurationException(
-                sprintf('Configuration key [%s] must be a string, got %s.', $key, get_debug_type($value))
+                sprintf('Configuration key [%s] must be a string, got %s.', $key, get_debug_type($value)),
             );
         }
 
@@ -104,7 +104,7 @@ final class Repository implements ArrayAccess
 
         if (!is_array($value) || array_is_list($value) === false) {
             throw new ConfigurationException(
-                sprintf('Configuration key [%s] must be a list, got %s.', $key, get_debug_type($value))
+                sprintf('Configuration key [%s] must be a list, got %s.', $key, get_debug_type($value)),
             );
         }
 
@@ -205,7 +205,7 @@ final class Repository implements ArrayAccess
         // Removal is ambiguous for dot paths; explicit reject keeps the
         // data model predictable.
         throw new \LogicException(
-            'Unsetting configuration keys is not supported. Use set() to overwrite or replace() to rebuild.'
+            'Unsetting configuration keys is not supported. Use set() to overwrite or replace() to rebuild.',
         );
     }
 
@@ -218,7 +218,7 @@ final class Repository implements ArrayAccess
 
         if (in_array('', $segments, true)) {
             throw new \InvalidArgumentException(
-                sprintf('Malformed configuration key [%s]; empty path segments are not allowed.', $key)
+                sprintf('Malformed configuration key [%s]; empty path segments are not allowed.', $key),
             );
         }
 

@@ -40,15 +40,15 @@ final class ApiTest extends TestCase
             Route::post('/parse-json', static fn (Request $request): Response => Response::json($request->json(), 200)),
             Route::get('/users', static function (Request $request): Response {
                 return Response::json(['count' => 3], 200);
-            })->middleware(new Throttle('users', 60, 60, new ArrayStore(60, 60))),
+            })->middleware(new Throttle('users', new ArrayStore(60, 60))),
             Route::post('/login', static function (Request $request): Response {
                 return Response::json(['token' => 't'], 200);
-            })->middleware(new Throttle('login', 2, 60, new ArrayStore(2, 60))),
+            })->middleware(new Throttle('login', new ArrayStore(2, 60))),
             Route::get('/search', static function (Request $request): Response {
                 $query = $request->queryParameter('q', '');
 
                 return Response::json(['q' => $query], 200);
-            })->middleware(new Throttle('search', 1, 60, new ArrayStore(1, 60))),
+            })->middleware(new Throttle('search', new ArrayStore(1, 60))),
         ];
     }
 
@@ -101,7 +101,7 @@ final class ApiTest extends TestCase
             [],
             [],
             [],
-            '{"username":"ada"'
+            '{"username":"ada"',
         );
 
         $response = $kernel->handle($request);
@@ -119,7 +119,7 @@ final class ApiTest extends TestCase
             [],
             [],
             [],
-            '"just-a-string"'
+            '"just-a-string"',
         );
 
         self::assertSame(400, $kernel->handle($request)->status());
@@ -134,7 +134,7 @@ final class ApiTest extends TestCase
             [],
             [],
             [],
-            '<root/>'
+            '<root/>',
         );
 
         $response = $kernel->handle($request);
@@ -153,7 +153,7 @@ final class ApiTest extends TestCase
             [],
             [],
             [],
-            '{"x":1}'
+            '{"x":1}',
         );
 
         $response = $kernel->handle($request);
@@ -171,7 +171,7 @@ final class ApiTest extends TestCase
             [],
             [],
             [],
-            '{"username":"ada"}'
+            '{"username":"ada"}',
         );
 
         $response = $kernel->handle($request);
@@ -201,7 +201,7 @@ final class ApiTest extends TestCase
             [],
             [],
             [],
-            '{"username":"ada"}'
+            '{"username":"ada"}',
         );
 
         $first = $kernel->handle($request);
@@ -257,7 +257,7 @@ final class ApiTest extends TestCase
 
         $request = Request::fromGlobals(
             ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/search', 'HTTP_ACCEPT' => 'application/json'],
-            ['q' => 'sahil']
+            ['q' => 'sahil'],
         );
 
         $response = $kernel->handle($request);
@@ -276,7 +276,7 @@ final class ApiTest extends TestCase
             [],
             [],
             [],
-            '{"username":"ada"}'
+            '{"username":"ada"}',
         );
 
         $first = $kernel->handle($request);

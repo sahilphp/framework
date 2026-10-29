@@ -335,7 +335,7 @@ final class Table
         if ($this->mode !== self::ALTER) {
             throw new SchemaException(sprintf(
                 '%s() is only available when altering an existing table (Schema::table()).',
-                $operation
+                $operation,
             ));
         }
     }

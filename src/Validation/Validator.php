@@ -86,7 +86,7 @@ final class Validator
         foreach ($operations as $operation) {
             if (!in_array($operation, $supported, true)) {
                 throw new InvalidArgumentException(
-                    sprintf('Unknown input normalization [%s]; supported: %s.', $operation, implode(', ', $supported))
+                    sprintf('Unknown input normalization [%s]; supported: %s.', $operation, implode(', ', $supported)),
                 );
             }
         }
@@ -204,7 +204,7 @@ final class Validator
         if (is_string($ruleSet)) {
             return array_values(array_filter(
                 array_map(trim(...), explode('|', $ruleSet)),
-                static fn (string $rule): bool => $rule !== ''
+                static fn (string $rule): bool => $rule !== '',
             ));
         }
 
@@ -230,7 +230,7 @@ final class Validator
             }
 
             throw new InvalidArgumentException(
-                sprintf('Validation rule for [%s] must be a string descriptor, Closure or RuleContract.', $key)
+                sprintf('Validation rule for [%s] must be a string descriptor, Closure or RuleContract.', $key),
             );
         }
 
@@ -369,7 +369,7 @@ final class Validator
                 ? null
                 : 'This field must be a valid URL.',
             default => throw new InvalidArgumentException(
-                sprintf('Unknown validation rule [%s] on field [%s].', $rule, $path)
+                sprintf('Unknown validation rule [%s] on field [%s].', $rule, $path),
             ),
         };
     }
@@ -461,7 +461,7 @@ final class Validator
 
         if ($rawBound === '' || !is_numeric($rawBound)) {
             throw new InvalidArgumentException(
-                sprintf('Validation rule [%s] needs a numeric argument.', $rule)
+                sprintf('Validation rule [%s] needs a numeric argument.', $rule),
             );
         }
 
@@ -492,7 +492,7 @@ final class Validator
 
         if ($bounds === '' || preg_match('/^(\d+)(?:,(\d+))?$/', $bounds) !== 1) {
             throw new InvalidArgumentException(
-                sprintf('Validation rule [%s] needs `length:min` or `length:min,max`.', $rule)
+                sprintf('Validation rule [%s] needs `length:min` or `length:min,max`.', $rule),
             );
         }
 
@@ -518,7 +518,7 @@ final class Validator
 
         if ($rawList === '') {
             throw new InvalidArgumentException(
-                sprintf('Validation rule [%s] needs at least one value.', $rule)
+                sprintf('Validation rule [%s] needs at least one value.', $rule),
             );
         }
 
@@ -554,13 +554,13 @@ final class Validator
 
         if (strlen($pattern) < 2 || $pattern[0] !== $pattern[-1]) {
             throw new InvalidArgumentException(
-                sprintf('regex rule on [%s] needs a delimited PCRE pattern, got [%s].', $path, $pattern)
+                sprintf('regex rule on [%s] needs a delimited PCRE pattern, got [%s].', $path, $pattern),
             );
         }
 
         if (in_array('e', self::modifiers($pattern), true)) {
             throw new InvalidArgumentException(
-                sprintf('regex rule on [%s] uses the forbidden PCRE "e" modifier.', $path)
+                sprintf('regex rule on [%s] uses the forbidden PCRE "e" modifier.', $path),
             );
         }
 

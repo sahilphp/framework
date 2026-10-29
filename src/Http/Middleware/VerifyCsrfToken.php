@@ -66,7 +66,7 @@ final class VerifyCsrfToken implements MiddlewareContract
 
         if (!$this->tokensMatch($request)) {
             throw new BadRequestHttpException(
-                'CSRF token validation failed.'
+                'CSRF token validation failed.',
             );
         }
 

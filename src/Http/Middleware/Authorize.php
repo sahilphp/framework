@@ -7,8 +7,6 @@ namespace Sahil\Http\Middleware;
 use Closure;
 use Sahil\Auth\AuthManager;
 use Sahil\Auth\Gate;
-use Sahil\Contracts\Auth\AuthenticatableContract;
-use Sahil\Http\Exception\BadRequestHttpException;
 use Sahil\Http\Request;
 use Sahil\Http\Response;
 

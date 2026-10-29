@@ -273,7 +273,7 @@ final class Request
 
         if (!is_array($decoded)) {
             throw new BadRequestHttpException(
-                'JSON request body must decode to an object or an array, not a scalar value.'
+                'JSON request body must decode to an object or an array, not a scalar value.',
             );
         }
 
@@ -333,8 +333,8 @@ final class Request
             throw new BadRequestHttpException(
                 sprintf(
                     'Rejecting malformed/duplicate request line: REQUEST_METHOD is %s; expected a Supported-Method token.',
-                    $method === null ? 'absent' : var_export($method, true)
-                )
+                    $method === null ? 'absent' : var_export($method, true),
+                ),
             );
         }
 

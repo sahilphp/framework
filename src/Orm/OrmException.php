@@ -17,7 +17,7 @@ final class OrmException extends RuntimeException
         return new self(sprintf(
             'Relation [%s] is not defined on model [%s]; define a public method returning Relation::hasOne/hasMany/belongsTo/belongsToMany.',
             $relation,
-            $model
+            $model,
         ));
     }
 
@@ -26,7 +26,7 @@ final class OrmException extends RuntimeException
         return new self(sprintf(
             'Relation [%s] on [%s] collides with an existing attribute of the same name.',
             $relation,
-            $model
+            $model,
         ));
     }
 
@@ -35,7 +35,7 @@ final class OrmException extends RuntimeException
         return new self(sprintf(
             'Model [%s] cannot act on the database: primary key [%s] has no value — is the shared connection set and the row persisted?',
             $model,
-            $column
+            $column,
         ));
     }
 }

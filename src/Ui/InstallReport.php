@@ -69,7 +69,7 @@ final class InstallReport
             $lines[] = sprintf(
                 'dependencies: %s (exit %d)',
                 $this->dependencyInstall->successful() ? 'installed' : 'installation failed',
-                $this->dependencyInstall->exitCode
+                $this->dependencyInstall->exitCode,
             );
         }
 

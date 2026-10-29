@@ -196,7 +196,7 @@ final class RenderContext
         if ($this->depth > 0) {
             throw new ViewRenderException(sprintf(
                 '@extends([%s]) is only allowed in the top-level template; a partial cannot change the layout.',
-                $name
+                $name,
             ));
         }
 
@@ -311,7 +311,7 @@ final class RenderContext
         if ($this->assets === null) {
             throw new ViewRenderException(
                 'Asset helpers require an AssetManager. Register App\Providers\AssetProvider '
-                .'or pass an AssetManagerContract to ViewEngine.'
+                .'or pass an AssetManagerContract to ViewEngine.',
             );
         }
 

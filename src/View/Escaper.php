@@ -65,7 +65,7 @@ final class Escaper
         if ($encoded === false) {
             throw new ViewRenderException(sprintf(
                 'Value of type [%s] cannot be encoded as JSON for @json (unsupported type or invalid UTF-8).',
-                get_debug_type($value)
+                get_debug_type($value),
             ));
         }
 
@@ -99,7 +99,7 @@ final class Escaper
 
         throw new ViewRenderException(sprintf(
             'Cannot output a value of type [%s]; convert it in the controller, loop over it, or embed it with @json(...).',
-            get_debug_type($value)
+            get_debug_type($value),
         ));
     }
 }

@@ -44,13 +44,13 @@ final class SeederLoader
         if ($files === false) {
             throw new MigrationException(sprintf(
                 'Unable to scan the seeders directory [%s].',
-                $this->directory
+                $this->directory,
             ));
         }
 
         $names = array_map(
             static fn (string $file): string => basename($file, '.php'),
-            $files
+            $files,
         );
 
         sort($names, SORT_STRING);
@@ -76,7 +76,7 @@ final class SeederLoader
             throw new MigrationException(sprintf(
                 'No seeder named [%s] is registered in [%s].',
                 $name,
-                $this->directory
+                $this->directory,
             ));
         }
 
@@ -87,7 +87,7 @@ final class SeederLoader
             throw new MigrationException(
                 sprintf('Seeder file [%s] failed to load: %s', $path, $failure->getMessage()),
                 0,
-                $failure
+                $failure,
             );
         }
 
@@ -96,7 +96,7 @@ final class SeederLoader
                 'Seeder file [%s] must return a %s instance, got %s.',
                 $path,
                 Seeder::class,
-                get_debug_type($seeder)
+                get_debug_type($seeder),
             ));
         }
 

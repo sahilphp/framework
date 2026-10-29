@@ -101,7 +101,7 @@ final class AssetManager implements AssetManagerContract
         if (strcasecmp($profile, 'auto') !== 0 && Profile::resolve($profile) === null) {
             throw new AssetException(sprintf(
                 'Unknown asset profile [%s]. Use tailwind, bootstrap, both, none, or auto.',
-                $profile
+                $profile,
             ));
         }
 
@@ -199,7 +199,7 @@ final class AssetManager implements AssetManagerContract
             throw new AssetException(
                 'No UI profile is configured or could be inferred. '
                 .'Run `bin/sahil ui:install tailwind|bootstrap|both|none`, '
-                .'or set ASSET_PROFILE explicitly.'
+                .'or set ASSET_PROFILE explicitly.',
             );
         }
 

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Sahil\Orm;
 
 use InvalidArgumentException;
-use Traversable;
 
 /**
  * Eager relation loading: each dotted path level adds exactly ONE extra
@@ -149,7 +148,7 @@ final class EagerLoader
             $driver->quoteIdentifier($relatedId),
             $driver->quoteIdentifier($pivotTable),
             $driver->quoteIdentifier($selfId),
-            implode(', ', array_fill(0, count($parentIds), '?'))
+            implode(', ', array_fill(0, count($parentIds), '?')),
         );
 
         $pairs = $connection?->execute($sql, $parentIds)->rows();

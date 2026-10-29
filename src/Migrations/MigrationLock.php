@@ -87,7 +87,7 @@ final class MigrationLock
         if (!$this->acquire()) {
             throw new MigrationException(sprintf(
                 'Another process is running migrations (advisory lock [%s] is held). Wait for it to finish and retry.',
-                $this->name
+                $this->name,
             ));
         }
 

@@ -140,7 +140,7 @@ final class UiCommandsTest extends FrameworkTestCase
 
         $this->runCommand(
             ['ui:install', 'tailwind', '--path='.$project],
-            ['PATH' => '/definitely-not-a-real-path']
+            ['PATH' => '/definitely-not-a-real-path'],
         )
             ->assertFailed()
             ->assertOutputContains('Missing frontend prerequisites')
@@ -159,7 +159,7 @@ final class UiCommandsTest extends FrameworkTestCase
 
         $this->runCommand(
             ['ui:install', 'tailwind', '--path='.$project],
-            ['PATH' => $bin]
+            ['PATH' => $bin],
         )
             ->assertExitCode(9)
             ->assertOutputContains('Dependency installation failed')
@@ -182,7 +182,7 @@ final class UiCommandsTest extends FrameworkTestCase
 
         $this->runCommand(
             ['ui:build', '--path='.$project],
-            ['PATH' => $bin]
+            ['PATH' => $bin],
         )
             ->assertExitCode(7)
             ->assertOutputContains('asset build failed')
@@ -228,7 +228,7 @@ final class UiCommandsTest extends FrameworkTestCase
     {
         $files = [];
         $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS)
+            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
         );
 
         /** @var \SplFileInfo $item */

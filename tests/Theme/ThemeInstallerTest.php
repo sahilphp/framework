@@ -106,7 +106,7 @@ final class ThemeInstallerTest extends UiTestCase
 
         self::assertLessThan(
             strpos($css, '@import "./theme.tokens.generated.css";'),
-            strpos($css, '@import "tailwindcss";')
+            strpos($css, '@import "tailwindcss";'),
         );
         self::assertStringContainsString('@import "./theme.tailwind.generated.css";', $css);
         self::assertStringNotContainsString('theme.bootstrap.generated.css', $css);
@@ -169,7 +169,7 @@ final class ThemeInstallerTest extends UiTestCase
         $report = (new ThemeInstaller())->install(
             $this->projectPath,
             Profile::Tailwind,
-            'theme/brand.json'
+            'theme/brand.json',
         );
 
         self::assertSame('theme/brand.json', $report->source);

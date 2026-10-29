@@ -101,7 +101,7 @@ final class ViewHelpers
                 $item instanceof Stringable => (string) $item,
                 default => throw new ViewRenderException(sprintf(
                     'join() cannot stringify an element of type [%s].',
-                    get_debug_type($item)
+                    get_debug_type($item),
                 )),
             };
         }
@@ -187,7 +187,7 @@ final class ViewHelpers
         throw new ViewRenderException(sprintf(
             '%s expects an array or iterable, got [%s].',
             $context,
-            get_debug_type($value)
+            get_debug_type($value),
         ));
     }
 }

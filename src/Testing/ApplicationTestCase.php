@@ -15,6 +15,7 @@ use Sahil\Http\Middleware\MiddlewareContract;
 use Sahil\Http\Middleware\StartSession;
 use Sahil\Http\Middleware\VerifyCsrfToken;
 use Sahil\Http\Request;
+use Sahil\Http\Response;
 use Sahil\Http\Router;
 use Throwable;
 
@@ -106,7 +107,7 @@ abstract class ApplicationTestCase extends TestCase
     protected function basePath(): string
     {
         throw new TestingException(
-            'ApplicationTestCase requires an explicit application root. Override basePath() in the test case.'
+            'ApplicationTestCase requires an explicit application root. Override basePath() in the test case.',
         );
     }
 
@@ -601,9 +602,7 @@ abstract class ApplicationTestCase extends TestCase
         $inherited = [];
 
         foreach (getenv() as $key => $value) {
-            if (is_string($key) && is_string($value)) {
-                $inherited[$key] = $value;
-            }
+            $inherited[$key] = $value;
         }
 
         return $inherited;
@@ -638,7 +637,7 @@ abstract class ApplicationTestCase extends TestCase
         ))->useDebugMode($application->config()->get('app.debug') === true);
 
         if ($this->withoutExceptionHandler) {
-            $kernel = $kernel->usingExceptionHandler(static fn (Throwable $throwable): never => throw $throwable);
+            $kernel = $kernel->usingExceptionHandler(static fn (Throwable $throwable): Response => throw $throwable);
         }
 
         if (!$this->withoutGlobalMiddleware) {

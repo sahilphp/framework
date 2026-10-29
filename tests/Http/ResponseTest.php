@@ -67,7 +67,7 @@ final class ResponseTest extends TestCase
         self::assertSame(
             (string) strlen('this body exists but is never emitted'),
             $response->header('Content-Length'),
-            'RFC 7231 4.3.2: HEAD reports the length a GET would produce'
+            'RFC 7231 4.3.2: HEAD reports the length a GET would produce',
         );
     }
 

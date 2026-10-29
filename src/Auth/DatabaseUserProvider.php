@@ -26,8 +26,8 @@ final class DatabaseUserProvider implements UserProviderContract
     public function retrieveByIdentifier(int|string $identifier): ?AuthenticatableContract
     {
         $query = sprintf(
-            "SELECT * FROM %s WHERE id = :id LIMIT 1",
-            $this->connection->driver()->quoteIdentifier($this->table)
+            'SELECT * FROM %s WHERE id = :id LIMIT 1',
+            $this->connection->driver()->quoteIdentifier($this->table),
         );
 
         $result = $this->connection->execute($query, ['id' => $identifier]);
@@ -51,8 +51,8 @@ final class DatabaseUserProvider implements UserProviderContract
         }
 
         $query = sprintf(
-            "SELECT * FROM %s WHERE email = :email LIMIT 1",
-            $this->connection->driver()->quoteIdentifier($this->table)
+            'SELECT * FROM %s WHERE email = :email LIMIT 1',
+            $this->connection->driver()->quoteIdentifier($this->table),
         );
 
         $result = $this->connection->execute($query, ['email' => $identifier]);
@@ -86,8 +86,8 @@ final class DatabaseUserProvider implements UserProviderContract
             $newHash = Password::hash($password, $options);
 
             $query = sprintf(
-                "UPDATE %s SET password = :password WHERE id = :id",
-                $this->connection->driver()->quoteIdentifier($this->table)
+                'UPDATE %s SET password = :password WHERE id = :id',
+                $this->connection->driver()->quoteIdentifier($this->table),
             );
 
             $this->connection->execute($query, [

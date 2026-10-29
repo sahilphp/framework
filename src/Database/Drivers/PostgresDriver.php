@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Sahil\Database\Drivers;
 
 use InvalidArgumentException;
-use Sahil\Database\Identifier;
 use Sahil\Database\QuotingDriver;
 use Sahil\Database\Schema\PostgresGrammar;
 use Sahil\Database\Schema\SchemaGrammar;
@@ -37,7 +36,7 @@ final class PostgresDriver extends QuotingDriver
             'pgsql:host=%s;port=%s;dbname=%s',
             $endpoint['host'],
             $endpoint['port'],
-            $database
+            $database,
         );
     }
 

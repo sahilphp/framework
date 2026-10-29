@@ -18,7 +18,7 @@ final class IrreversibleMigrationException extends RuntimeException
     {
         parent::__construct(sprintf(
             'Migration [%s] does not implement down() and is not reversible.',
-            $migration
+            $migration,
         ));
     }
 }

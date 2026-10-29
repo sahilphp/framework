@@ -237,7 +237,7 @@ final class Session implements SessionContract
             $this->httpOnly ? '; HttpOnly' : '',
             $this->sameSite,
             $this->secure ? '; Secure' : '',
-            $this->lifetime
+            $this->lifetime,
         );
 
         return $response->withHeader('Set-Cookie', $cookie);

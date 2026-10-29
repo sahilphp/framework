@@ -24,7 +24,7 @@ final class ConflictException extends UiException
             $message = sprintf(
                 '%d existing file(s) differ from the selected profile: %s',
                 count($conflicts),
-                implode(', ', $conflicts)
+                implode(', ', $conflicts),
             );
         }
 

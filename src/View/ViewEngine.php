@@ -67,7 +67,7 @@ final class ViewEngine implements ViewContract
             if (isset($visited[$current])) {
                 throw new ViewRenderException(sprintf(
                     'Circular @extends chain: %s.',
-                    implode(' -> ', [...array_keys($visited), $current])
+                    implode(' -> ', [...array_keys($visited), $current]),
                 ));
             }
 
@@ -144,7 +144,7 @@ final class ViewEngine implements ViewContract
             throw new ViewRenderException(sprintf(
                 '@include nesting exceeded %d levels at [%s]; a template probably includes itself.',
                 self::MAX_INCLUDE_DEPTH,
-                $name
+                $name,
             ));
         }
 

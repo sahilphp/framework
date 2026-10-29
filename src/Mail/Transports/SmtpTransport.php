@@ -112,17 +112,16 @@ final class SmtpTransport implements TransportContract
             ));
         }
 
+        // Implicit TLS (SMTPS) is selected by the third constructor argument.
         $mailer = new EsmtpTransport($host, $port, $security === 'ssl');
 
-        if ($security === 'tls') {
-            // "tls" means STARTTLS is required: never downgrade to plaintext.
-            $mailer->setAutoTls(true);
-            $mailer->setRequireTls(true);
-        }
-
-        if ($security === 'none') {
-            $mailer->setAutoTls(false);
-            $mailer->setRequireTls(false);
+        // symfony/mailer >= 7.1 can require STARTTLS explicitly; the 6.4 LTS
+        // line (the only one available on PHP 8.1) negotiates STARTTLS
+        // opportunistically and exposes no switch for it.
+        // @phpstan-ignore-next-line the method only exists on symfony/mailer >= 7.1
+        if (method_exists($mailer, 'setAutoTls')) {
+            $mailer->setAutoTls($security === 'tls');
+            $mailer->setRequireTls($security === 'tls');
         }
 
         $auth = is_array($this->configuration['auth'] ?? null) ? $this->configuration['auth'] : [];

@@ -128,7 +128,7 @@ final class ThemeGeneratorTest extends TestCase
 
         self::assertLessThan(
             strpos($tailwindEntry, '@import "./theme.overrides.css";'),
-            strpos($tailwindEntry, '@import "./theme.tailwind.generated.css";')
+            strpos($tailwindEntry, '@import "./theme.tailwind.generated.css";'),
         );
         self::assertStringNotContainsString('theme.bootstrap.generated.css', $tailwindEntry);
 

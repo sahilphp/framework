@@ -54,7 +54,7 @@ final class PackageJsonMergerTest extends TestCase
     {
         $merged = PackageJsonMerger::merge(
             ['keywords' => ['custom']],
-            ['keywords' => ['framework']]
+            ['keywords' => ['framework']],
         );
 
         self::assertSame(['custom'], $merged['keywords']);
@@ -64,7 +64,7 @@ final class PackageJsonMergerTest extends TestCase
     {
         self::assertTrue(PackageJsonMerger::equals(
             ['b' => 2, 'a' => ['d' => 4, 'c' => 3]],
-            ['a' => ['c' => 3, 'd' => 4], 'b' => 2]
+            ['a' => ['c' => 3, 'd' => 4], 'b' => 2],
         ));
         self::assertFalse(PackageJsonMerger::equals(['a' => 1], ['a' => 2]));
     }

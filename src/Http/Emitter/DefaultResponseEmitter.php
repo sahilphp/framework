@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Sahil\Http\Emitter;
 
-use RuntimeException;
 use Sahil\Http\Request;
 use Sahil\Http\Response;
 use Sahil\Http\Status;
@@ -25,7 +24,7 @@ final class DefaultResponseEmitter implements ResponseEmitterContract
     {
         if (headers_sent($file, $line)) {
             throw new HeadersAlreadySentException(
-                sprintf('Output already started at %s:%d; the response could not be delivered.', $file, $line)
+                sprintf('Output already started at %s:%d; the response could not be delivered.', $file, $line),
             );
         }
 

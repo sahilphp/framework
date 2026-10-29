@@ -36,7 +36,7 @@ final class SeederTest extends TestCase
             null,
             null,
             [],
-            static fn (array $_): PDO => $recorder
+            static fn (array $_): PDO => $recorder,
         );
     }
 
@@ -221,7 +221,7 @@ final class SeederTest extends TestCase
         self::assertContains(
             'ROLLBACK',
             array_column($this->recorder->executions, 'sql'),
-            'a failed seeder must not leave half-inserted rows'
+            'a failed seeder must not leave half-inserted rows',
         );
     }
 }

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Sahil\Tests\Orm;
 
 use Sahil\Orm\Model;
-use Sahil\Orm\ModelQuery;
 use Sahil\Orm\Relation;
 
 final class OrmProfile extends Model

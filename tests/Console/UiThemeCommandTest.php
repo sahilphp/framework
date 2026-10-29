@@ -36,7 +36,7 @@ final class UiThemeCommandTest extends FrameworkTestCase
         self::assertFileExists($project.'/resources/css/theme.overrides.css');
         self::assertStringContainsString(
             '@import "./theme.tailwind.generated.css";',
-            (string) file_get_contents($project.'/resources/css/tailwind.css')
+            (string) file_get_contents($project.'/resources/css/tailwind.css'),
         );
     }
 
@@ -70,7 +70,7 @@ final class UiThemeCommandTest extends FrameworkTestCase
         $data['colors']['primary'] = ['light' => '#0f766e', 'dark' => '#2dd4bf'];
         file_put_contents(
             $source,
-            json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n"
+            json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n",
         );
 
         $this->runCommand([
@@ -86,15 +86,15 @@ final class UiThemeCommandTest extends FrameworkTestCase
         self::assertFileDoesNotExist($project.'/theme/tokens.json');
         self::assertStringContainsString(
             '#0f766e',
-            (string) file_get_contents($project.'/resources/css/theme.tokens.generated.css')
+            (string) file_get_contents($project.'/resources/css/theme.tokens.generated.css'),
         );
         self::assertStringContainsString(
             'theme.bootstrap.generated.css',
-            (string) file_get_contents($project.'/resources/css/bootstrap.css')
+            (string) file_get_contents($project.'/resources/css/bootstrap.css'),
         );
         self::assertStringContainsString(
             'theme.tailwind.generated.css',
-            (string) file_get_contents($project.'/resources/css/tailwind.css')
+            (string) file_get_contents($project.'/resources/css/tailwind.css'),
         );
     }
 

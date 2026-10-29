@@ -117,7 +117,7 @@ final class Connection
         foreach ($parameters as $key => $parameter) {
             if (is_array($parameter)) {
                 throw new \InvalidArgumentException(
-                    sprintf('Binding arrays is not supported (parameter [%s]); expand manually.', $key)
+                    sprintf('Binding arrays is not supported (parameter [%s]); expand manually.', $key),
                 );
             }
         }

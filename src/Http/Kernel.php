@@ -142,7 +142,7 @@ final class Kernel
 
             if (!$resolved instanceof MiddlewareContract) {
                 throw new \RuntimeException(
-                    sprintf('Configured route middleware [%s] must expose MiddlewareContract::handle(...).', is_object($spec) ? get_class($spec) : (string) $spec)
+                    sprintf('Configured route middleware [%s] must expose MiddlewareContract::handle(...).', is_object($spec) ? get_class($spec) : (string) $spec),
                 );
             }
 
@@ -165,7 +165,7 @@ final class Kernel
             static fn (Closure $next, MiddlewareContract $middleware): Closure
                 => static fn (Request $request): Response => $middleware->handle($request, $next),
             /** @var callable(Request): Response $core */
-            static fn (Request $request): Response => $core($request)
+            static fn (Request $request): Response => $core($request),
         );
     }
 
@@ -188,7 +188,7 @@ final class Kernel
 
         if (!$response instanceof Response) {
             throw new \RuntimeException(
-                sprintf('Handler must return %s; got %s.', Response::class, get_debug_type($response))
+                sprintf('Handler must return %s; got %s.', Response::class, get_debug_type($response)),
             );
         }
 

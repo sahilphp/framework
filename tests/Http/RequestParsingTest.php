@@ -113,7 +113,7 @@ final class RequestParsingTest extends TestCase
             self::assertSame(
                 'DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT',
                 $exception->getHeaders()['Allow'],
-                'the Allow header must list every supported method'
+                'the Allow header must list every supported method',
             );
         }
     }

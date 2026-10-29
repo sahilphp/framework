@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Sahil\Tests\Testing;
 
 use PHPUnit\Framework\Attributes\Depends;
-use stdClass;
 use Sahil\Foundation\Application;
 use Sahil\Foundation\ServiceProvider;
 use Sahil\Http\Response;
 use Sahil\Http\Route;
 use Sahil\Http\Router;
 use Sahil\Tests\FrameworkTestCase;
+use stdClass;
 
 /**
  * Isolation is a correctness property of the test harness: one test's

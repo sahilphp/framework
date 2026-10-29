@@ -21,7 +21,7 @@ final class ProcessRunnerTest extends TestCase
     {
         $result = $this->runner->run(
             [PHP_BINARY, '-r', 'echo "hello"; fwrite(STDERR, "warning");'],
-            sys_get_temp_dir()
+            sys_get_temp_dir(),
         );
 
         self::assertTrue($result->successful());
@@ -34,7 +34,7 @@ final class ProcessRunnerTest extends TestCase
     {
         $result = $this->runner->run(
             [PHP_BINARY, '-r', 'fwrite(STDERR, "broken"); exit(7);'],
-            sys_get_temp_dir()
+            sys_get_temp_dir(),
         );
 
         self::assertFalse($result->successful());
@@ -50,7 +50,7 @@ final class ProcessRunnerTest extends TestCase
 
         $result = $this->runner->run(
             [PHP_BINARY, '-r', 'echo $argv[1];', $payload],
-            sys_get_temp_dir()
+            sys_get_temp_dir(),
         );
 
         self::assertTrue($result->successful());

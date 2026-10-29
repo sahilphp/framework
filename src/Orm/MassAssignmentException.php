@@ -21,7 +21,7 @@ final class MassAssignmentException extends RuntimeException
         return new self(sprintf(
             'Mass assignment blocked on [%s] for attribute(s): %s — add them to $fillable or unset.',
             $model,
-            implode(', ', $rejected)
+            implode(', ', $rejected),
         ));
     }
 }

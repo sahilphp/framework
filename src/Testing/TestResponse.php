@@ -27,9 +27,6 @@ final class TestResponse
     ) {
     }
 
-    /**
-     * @param array<string, string> $headers
-     */
     public static function fromResponse(string $method, string $uri, Response $response): self
     {
         $headers = [];

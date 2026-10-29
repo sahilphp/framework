@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Sahil\Tests\Http;
 
 use PHPUnit\Framework\TestCase;
-use Sahil\Http\Emitter\DefaultResponseEmitter;
 use Sahil\Http\Emitter\ResponseEmitterContract;
 use Sahil\Http\Request;
 use Sahil\Http\Response;
@@ -87,7 +86,7 @@ final class EmitterTest extends TestCase
             $process = proc_open(
                 [PHP_CGI_BINARY, '-n', '-d', 'cgi.force_redirect=0', '-d', 'error_log=', $script, $projectRoot],
                 $descriptors,
-                $pipes
+                $pipes,
             );
             self::assertIsResource($process);
 

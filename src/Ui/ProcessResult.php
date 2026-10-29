@@ -34,7 +34,7 @@ final class ProcessResult
             static fn (string $token): string => preg_match('/^[A-Za-z0-9_@%+=:,.\/-]+$/', $token) === 1
                 ? $token
                 : escapeshellarg($token),
-            $this->command
+            $this->command,
         ));
     }
 }

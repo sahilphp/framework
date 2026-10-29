@@ -133,7 +133,7 @@ final class UploadSecurityTest extends TestCase
 
     public function test_upload_to_public_disk_is_publicly_urlable(): void
     {
-        $content = base64_decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", true).str_repeat("\0", 50);
+        $content = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', true).str_repeat("\0", 50);
         $tmp = $this->uploadTemp($content, 'chart.png');
 
         $_FILES['avatar'] = $this->fileEntry([
@@ -181,7 +181,7 @@ final class UploadSecurityTest extends TestCase
                 'max_size' => 100_000,
                 'allowed_mimes' => ['image/jpeg'],
             ]),
-            'are not permitted'
+            'are not permitted',
         );
 
         $this->assertSame([], $this->listRoot($this->privateRoot));
@@ -189,7 +189,7 @@ final class UploadSecurityTest extends TestCase
 
     public function test_client_supplied_extension_is_ignored(): void
     {
-        $content = base64_decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", true);
+        $content = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', true);
         $tmp = $this->uploadTemp($content, 'image.jpg.php');
 
         $_FILES['avatar'] = $this->fileEntry([
@@ -222,7 +222,7 @@ final class UploadSecurityTest extends TestCase
                 'max_size' => 1024,
                 'allowed_mimes' => ['text/plain'],
             ]),
-            'exceeds the maximum allowed size of 1024 bytes'
+            'exceeds the maximum allowed size of 1024 bytes',
         );
     }
 
@@ -241,7 +241,7 @@ final class UploadSecurityTest extends TestCase
                 'max_size' => 100_000,
                 'allowed_mimes' => ['text/plain'],
             ]),
-            'size cannot be verified'
+            'size cannot be verified',
         );
     }
 
@@ -329,7 +329,7 @@ final class UploadSecurityTest extends TestCase
                 'max_size' => 100_000,
                 'allowed_mimes' => ['text/x-php'],
             ]),
-            'extension [php] are not permitted'
+            'extension [php] are not permitted',
         );
     }
 
@@ -350,7 +350,7 @@ final class UploadSecurityTest extends TestCase
                 'allowed_mimes' => ['text/x-php'],
                 'allow_executable_extensions' => true,
             ]),
-            'extension [php] are not permitted'
+            'extension [php] are not permitted',
         );
 
         $this->assertSame([], $this->listRoot($this->privateRoot));
@@ -358,7 +358,7 @@ final class UploadSecurityTest extends TestCase
 
     public function test_upload_is_verified_through_the_driver_before_it_is_reported(): void
     {
-        $content = base64_decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", true);
+        $content = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', true);
         $tmp = $this->uploadTemp($content, 'chart.png');
 
         $_FILES['avatar'] = $this->fileEntry([
@@ -392,7 +392,7 @@ final class UploadSecurityTest extends TestCase
 
     public function test_a_driver_that_reports_different_content_is_rejected_and_cleaned_up(): void
     {
-        $content = base64_decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", true);
+        $content = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', true);
         $tmp = $this->uploadTemp($content, 'chart.png');
 
         $_FILES['avatar'] = $this->fileEntry([
@@ -419,7 +419,7 @@ final class UploadSecurityTest extends TestCase
                 'max_size' => 100_000,
                 'allowed_mimes' => ['image/png'],
             ]),
-            'failed verification'
+            'failed verification',
         );
 
         $this->assertSame([], $driver->files, 'a rejected upload must not be left behind');

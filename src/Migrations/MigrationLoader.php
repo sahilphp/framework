@@ -45,7 +45,7 @@ final class MigrationLoader
         if ($files === false) {
             throw new MigrationException(sprintf(
                 'Unable to scan the migrations directory [%s].',
-                $this->directory
+                $this->directory,
             ));
         }
 
@@ -89,8 +89,8 @@ final class MigrationLoader
                 sprintf(
                     'the file must return a %s instance, got %s',
                     Migration::class,
-                    get_debug_type($migration)
-                )
+                    get_debug_type($migration),
+                ),
             );
         }
 

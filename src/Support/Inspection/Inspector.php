@@ -59,7 +59,7 @@ final class Inspector
 
             if (!is_array($tree)) {
                 throw new \InvalidArgumentException(
-                    sprintf('Config namespace [%s] is not an array (not found or scalar).', $namespace)
+                    sprintf('Config namespace [%s] is not an array (not found or scalar).', $namespace),
                 );
             }
 
@@ -130,7 +130,7 @@ final class Inspector
                 $report[] = sprintf(
                     'MISSING %-20s %s',
                     $name,
-                    $required && $isProduction ? '(REQUIRED in production)' : '(not set, framework defaults apply)'
+                    $required && $isProduction ? '(REQUIRED in production)' : '(not set, framework defaults apply)',
                 );
 
                 if ($required && $isProduction) {

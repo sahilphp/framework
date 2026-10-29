@@ -41,7 +41,7 @@ final class Response
 
         if (!Status::allowsBody($status) && $body !== '') {
             throw new InvalidArgumentException(
-                sprintf('Response status [%d] does not allow a body (%s).', $status, Status::reason($status))
+                sprintf('Response status [%d] does not allow a body (%s).', $status, Status::reason($status)),
             );
         }
 
@@ -93,7 +93,7 @@ final class Response
     {
         if (Status::allowsBody($status)) {
             throw new InvalidArgumentException(
-                sprintf('empty() requires a bodyless status (1xx, 204 or 304); got [%d], which allows a body.', $status)
+                sprintf('empty() requires a bodyless status (1xx, 204 or 304); got [%d], which allows a body.', $status),
             );
         }
 
@@ -108,7 +108,7 @@ final class Response
     {
         if (!in_array($status, [301, 302, 303, 307, 308], true)) {
             throw new InvalidArgumentException(
-                sprintf('Redirect status must be one of 301, 302, 303, 307, 308; got [%d].', $status)
+                sprintf('Redirect status must be one of 301, 302, 303, 307, 308; got [%d].', $status),
             );
         }
 
@@ -231,7 +231,7 @@ final class Response
             throw new InvalidArgumentException(
                 sprintf('Response payload could not be JSON-encoded: %s', $exception->getMessage()),
                 0,
-                $exception
+                $exception,
             );
         }
     }

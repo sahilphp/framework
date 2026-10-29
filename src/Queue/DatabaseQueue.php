@@ -61,7 +61,7 @@ final class DatabaseQueue implements QueueContract
                 $this->quote('available_at'),
                 $this->quote('created_at'),
             ),
-            [$id, $queue, $payload, 0, $this->availableAt($delay), $this->now()]
+            [$id, $queue, $payload, 0, $this->availableAt($delay), $this->now()],
         );
 
         return $id;
@@ -91,7 +91,7 @@ final class DatabaseQueue implements QueueContract
                     $this->quote('available_at'),
                     $this->quote('id'),
                 ),
-                [$queue, $now]
+                [$queue, $now],
             )->first();
 
             if ($row === null) {
@@ -108,7 +108,7 @@ final class DatabaseQueue implements QueueContract
                     $this->quote('id'),
                     $this->quote('reserved_at'),
                 ),
-                [$now, (string) $row['id']]
+                [$now, (string) $row['id']],
             )->affected();
 
             if ($affected !== 1) {
@@ -128,7 +128,7 @@ final class DatabaseQueue implements QueueContract
     {
         $this->connection->execute(
             sprintf('DELETE FROM %s WHERE %s = ?', $this->quotedTable(), $this->quote('id')),
-            [$id]
+            [$id],
         );
     }
 
@@ -142,7 +142,7 @@ final class DatabaseQueue implements QueueContract
                 $this->quote('available_at'),
                 $this->quote('id'),
             ),
-            [$this->availableAt($delay), $id]
+            [$this->availableAt($delay), $id],
         );
     }
 
@@ -155,7 +155,7 @@ final class DatabaseQueue implements QueueContract
                 $this->quotedTable(),
                 $this->quote('queue'),
             ),
-            [$queue]
+            [$queue],
         )->first();
 
         return $row === null ? 0 : (int) $row['total'];
@@ -172,7 +172,7 @@ final class DatabaseQueue implements QueueContract
                 $this->quote('reserved_at'),
                 $this->quote('available_at'),
             ),
-            [$queue, $this->now()]
+            [$queue, $this->now()],
         )->first();
 
         return $row === null;

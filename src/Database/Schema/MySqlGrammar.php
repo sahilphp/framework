@@ -23,7 +23,7 @@ final class MySqlGrammar extends AbstractGrammar
         return sprintf(
             'DROP TABLE %s%s',
             $ifExists ? 'IF EXISTS ' : '',
-            $this->driver->quoteIdentifier($table)
+            $this->driver->quoteIdentifier($table),
         );
     }
 
@@ -65,17 +65,17 @@ final class MySqlGrammar extends AbstractGrammar
         return match ($index->kind()) {
             IndexDefinition::KIND_PRIMARY => [sprintf(
                 'PRIMARY KEY (%s)',
-                $this->quoteList($index->columns())
+                $this->quoteList($index->columns()),
             )],
             IndexDefinition::KIND_UNIQUE => [sprintf(
                 'UNIQUE KEY %s (%s)',
                 $this->driver->quoteIdentifier($this->indexName($table, $index)),
-                $this->quoteList($index->columns())
+                $this->quoteList($index->columns()),
             )],
             default => [sprintf(
                 'INDEX %s (%s)',
                 $this->driver->quoteIdentifier($this->indexName($table, $index)),
-                $this->quoteList($index->columns())
+                $this->quoteList($index->columns()),
             )],
         };
     }
@@ -108,7 +108,7 @@ final class MySqlGrammar extends AbstractGrammar
             $this->driver->quoteIdentifier($table),
             $clause,
             $name,
-            $this->quoteList($index->columns())
+            $this->quoteList($index->columns()),
         );
     }
 
@@ -117,7 +117,7 @@ final class MySqlGrammar extends AbstractGrammar
         return sprintf(
             'ALTER TABLE %s DROP INDEX %s',
             $this->driver->quoteIdentifier($table),
-            $this->driver->quoteIdentifier($index)
+            $this->driver->quoteIdentifier($index),
         );
     }
 
@@ -126,7 +126,7 @@ final class MySqlGrammar extends AbstractGrammar
         return sprintf(
             'ALTER TABLE %s DROP FOREIGN KEY %s',
             $this->driver->quoteIdentifier($table),
-            $this->driver->quoteIdentifier($foreignKey)
+            $this->driver->quoteIdentifier($foreignKey),
         );
     }
 

@@ -106,7 +106,7 @@ final class LocalDriverTest extends TestCase
 
         $this->assertSame(
             ['photos/a.jpg', 'photos/album', 'photos/b.txt'],
-            array_map(static fn (array $entry): string => $entry['path'], $contents)
+            array_map(static fn (array $entry): string => $entry['path'], $contents),
         );
         $this->assertSame('file', $contents[0]['type']);
         $this->assertSame('image/jpeg', $contents[0]['mime_type']);

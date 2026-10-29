@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Sahil\Database;
 
 use PDO;
-use PDOException;
 use Sahil\Database\Drivers\MySqlDriver;
 use Sahil\Database\Drivers\PostgresDriver;
 
@@ -43,7 +42,7 @@ final class ConnectionFactory
             throw new ConnectionException(sprintf(
                 'Unsupported database driver [%s]; supported: %s.',
                 is_scalar($driver) ? (string) $driver : '(value not scalar)',
-                implode(', ', array_keys(self::DRIVERS))
+                implode(', ', array_keys(self::DRIVERS)),
             ));
         }
 
@@ -57,7 +56,7 @@ final class ConnectionFactory
             throw new ConnectionException(sprintf(
                 'The [%s] extension is required by the [%s] driver but is not installed.',
                 $extension,
-                $driver
+                $driver,
             ));
         }
 
@@ -74,7 +73,7 @@ final class ConnectionFactory
             $arguments['dsn'],
             $arguments['username'],
             $arguments['password'],
-            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION] + $arguments['options']
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION] + $arguments['options'],
         );
 
         return Connection::connect($driverInstance, $dsn, $username, $password, $dialectOptions, $factory);

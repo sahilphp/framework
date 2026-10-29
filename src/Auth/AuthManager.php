@@ -81,7 +81,7 @@ final class AuthManager
         $this->provider->rehashPasswordIfRequired(
             $user,
             $credentials['password'],
-            $this->passwordOptions
+            $this->passwordOptions,
         );
 
         // Set the authenticated user

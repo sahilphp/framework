@@ -47,7 +47,7 @@ final class FileLogger implements StructuredLoggerContract
     {
         if (!array_key_exists($threshold, self::SEVERITY)) {
             throw new \OutOfRangeException(
-                sprintf('Unknown log threshold [%s]; use one of: %s.', $threshold, implode(', ', self::severityList()))
+                sprintf('Unknown log threshold [%s]; use one of: %s.', $threshold, implode(', ', self::severityList())),
             );
         }
 

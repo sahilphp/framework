@@ -41,7 +41,7 @@ final class UiInstaller
             throw new UiException(
                 "Missing frontend prerequisites:\n  - "
                 .implode("\n  - ", $toolchain->issues())
-                ."\nUse --no-install to scaffold the files without installing dependencies."
+                ."\nUse --no-install to scaffold the files without installing dependencies.",
             );
         }
 
@@ -131,9 +131,9 @@ final class UiInstaller
                         .'Files were generated; fix the package manager error and run `bin/sahil ui:build`.',
                         $result->describe(),
                         $result->exitCode,
-                        $this->tail($details)
+                        $this->tail($details),
                     ),
-                    $result->exitCode > 0 ? $result->exitCode : 1
+                    $result->exitCode > 0 ? $result->exitCode : 1,
                 );
             }
         }
@@ -157,7 +157,7 @@ final class UiInstaller
                 if (!$options->overwrite) {
                     throw new UiException(
                         $invalid->getMessage()
-                        .' Use --overwrite to replace it (a backup is kept), or fix the JSON and re-run.'
+                        .' Use --overwrite to replace it (a backup is kept), or fix the JSON and re-run.',
                     );
                 }
             }
@@ -272,7 +272,7 @@ final class UiInstaller
 
         $present = array_map(
             static fn (string $line): string => strtolower(ltrim(rtrim(trim($line), '/'), '/')),
-            $lines
+            $lines,
         );
         $missing = [];
 
@@ -406,7 +406,7 @@ final class UiInstaller
         $backupRoot = sprintf(
             'storage/framework/ui-backups/%s-%s',
             gmdate('Ymd-His'),
-            bin2hex(random_bytes(3))
+            bin2hex(random_bytes(3)),
         );
         $destination = $basePath.'/'.$backupRoot.'/'.$relative;
 

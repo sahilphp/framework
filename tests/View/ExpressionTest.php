@@ -108,7 +108,7 @@ final class ExpressionTest extends TestCase
 
     public function test_not_in_operator(): void
     {
-        $php = (new ExpressionCompiler())->compile("1 not in [1, 2]");
+        $php = (new ExpressionCompiler())->compile('1 not in [1, 2]');
         self::assertStringContainsString('ViewHelpers::contains', $php);
     }
 

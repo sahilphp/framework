@@ -30,7 +30,7 @@ abstract class HttpException extends \RuntimeException
     ) {
         if (!Status::isValid($statusCode)) {
             throw new InvalidArgumentException(
-                sprintf('HTTP exceptions must carry a valid status code 100-599, got [%d].', $statusCode)
+                sprintf('HTTP exceptions must carry a valid status code 100-599, got [%d].', $statusCode),
             );
         }
 

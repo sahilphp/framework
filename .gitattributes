@@ -1,0 +1,14 @@
+# Files excluded from the distributed package (Composer dist archives).
+/.gitattributes    export-ignore
+/.gitignore        export-ignore
+/.github           export-ignore
+/.php-cs-fixer.dist.php export-ignore
+/phpstan.neon      export-ignore
+/phpunit.xml       export-ignore
+/tests             export-ignore
+/composer.lock     export-ignore
+
+# Normalise line endings in the archive.
+* text=auto eol=lf
+*.php text eol=lf
+*.md  text eol=lf

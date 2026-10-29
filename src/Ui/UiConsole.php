@@ -88,7 +88,7 @@ final class UiConsole
         if (count($options['positional']) > 1) {
             throw new UiException(sprintf(
                 'ui:install: unexpected argument [%s].',
-                implode(' ', array_slice($options['positional'], 1))
+                implode(' ', array_slice($options['positional'], 1)),
             ));
         }
 
@@ -124,7 +124,7 @@ final class UiConsole
         if ($script === null) {
             throw new UiException(
                 'package.json has no "build" script. Run `bin/sahil ui:install --merge` '
-                .'to add the generated scripts (existing scripts are preserved).'
+                .'to add the generated scripts (existing scripts are preserved).',
             );
         }
 
@@ -159,7 +159,7 @@ final class UiConsole
             $this->error(sprintf(
                 'ui:build: asset build failed (%s exited %d).',
                 $result->describe(),
-                $result->exitCode
+                $result->exitCode,
             ));
 
             return $result->exitCode > 0 ? $result->exitCode : 1;
@@ -204,7 +204,7 @@ final class UiConsole
         if ($script === null) {
             throw new UiException(
                 'package.json has no "dev" script. Run `bin/sahil ui:install --merge` '
-                .'to add the generated scripts (existing scripts are preserved).'
+                .'to add the generated scripts (existing scripts are preserved).',
             );
         }
 
@@ -252,7 +252,7 @@ final class UiConsole
         if ($options['json']) {
             $json = json_encode(
                 $report->toArray(),
-                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
             );
 
             if ($json === false) {
@@ -279,7 +279,7 @@ final class UiConsole
         if (count($options['positional']) > 1) {
             throw new UiException(sprintf(
                 'ui:theme: unexpected argument [%s].',
-                implode(' ', array_slice($options['positional'], 1))
+                implode(' ', array_slice($options['positional'], 1)),
             ));
         }
 
@@ -294,7 +294,7 @@ final class UiConsole
         if ($options['json']) {
             $json = json_encode(
                 $report->toArray(),
-                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
             );
 
             if ($json === false) {
@@ -431,7 +431,7 @@ final class UiConsole
                 throw new UiException(sprintf(
                     'Conflicting profiles [%s] and [%s]. Pass only one.',
                     $positional,
-                    $explicit
+                    $explicit,
                 ));
             }
         }
@@ -445,7 +445,7 @@ final class UiConsole
                 throw new UiException(sprintf(
                     "Unknown profile [%s].\nAvailable profiles:\n%s",
                     $name,
-                    $this->profileChoices()
+                    $this->profileChoices(),
                 ));
             }
 
@@ -460,7 +460,7 @@ final class UiConsole
 
         throw new UiException(
             "No profile was given and none is recorded in .sahil-ui.json.\nAvailable profiles:\n"
-            .$this->profileChoices()
+            .$this->profileChoices(),
         );
     }
 
@@ -484,7 +484,7 @@ final class UiConsole
             throw new UiException(sprintf(
                 '%s: unexpected argument [%s].',
                 $command,
-                implode(' ', $options['positional'])
+                implode(' ', $options['positional']),
             ));
         }
     }
@@ -496,7 +496,7 @@ final class UiConsole
         if (!$toolchain->isReady() && !$allowMissing) {
             throw new UiException(
                 "Missing frontend prerequisites:\n  - "
-                .implode("\n  - ", $toolchain->issues())
+                .implode("\n  - ", $toolchain->issues()),
             );
         }
 
@@ -513,7 +513,7 @@ final class UiConsole
             'Frontend dependencies are not installed (node_modules/vite is missing).%s'
             .'Run `bin/sahil ui:install` or `%s install`.',
             PHP_EOL,
-            $toolchain->packageManager ?? 'npm'
+            $toolchain->packageManager ?? 'npm',
         ));
     }
 
@@ -569,7 +569,7 @@ final class UiConsole
 
         $items = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($resolved, FilesystemIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::CHILD_FIRST
+            RecursiveIteratorIterator::CHILD_FIRST,
         );
 
         /** @var SplFileInfo $item */

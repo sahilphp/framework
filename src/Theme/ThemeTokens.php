@@ -88,7 +88,7 @@ final class ThemeTokens
             throw new ThemeException(sprintf(
                 'Theme file [%s] is not valid JSON: %s',
                 $path,
-                $invalid->getMessage()
+                $invalid->getMessage(),
             ), 0, $invalid);
         }
 
@@ -113,7 +113,7 @@ final class ThemeTokens
                 'Theme %s has unsupported version %s; expected %d.',
                 $source,
                 self::display($version),
-                self::VERSION
+                self::VERSION,
             ));
         }
 
@@ -273,7 +273,7 @@ final class ThemeTokens
     {
         $json = json_encode(
             $this->toArray(),
-            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
         );
 
         if ($json === false) {
@@ -312,7 +312,7 @@ final class ThemeTokens
                     throw new ThemeException(sprintf(
                         'Theme %s: %s.light must be a string.',
                         $source,
-                        $path
+                        $path,
                     ));
                 }
 
@@ -323,7 +323,7 @@ final class ThemeTokens
                         throw new ThemeException(sprintf(
                             'Theme %s: %s.dark must be a string.',
                             $source,
-                            $path
+                            $path,
                         ));
                     }
 
@@ -335,7 +335,7 @@ final class ThemeTokens
                 throw new ThemeException(sprintf(
                     'Theme %s: %s must be a CSS color string or an object with light/dark values.',
                     $source,
-                    $path
+                    $path,
                 ));
             }
 
@@ -380,7 +380,7 @@ final class ThemeTokens
                 throw new ThemeException(sprintf(
                     'Theme %s: typography.%s must be a string.',
                     $source,
-                    $key
+                    $key,
                 ));
             }
 
@@ -390,17 +390,17 @@ final class ThemeTokens
         $typography['sizes'] = self::lengthMap(
             $value['sizes'] ?? null,
             'typography.sizes',
-            $source
+            $source,
         );
         $typography['line-heights'] = self::lineHeightMap(
             $value['line-heights'] ?? null,
             'typography.line-heights',
-            $source
+            $source,
         );
         $typography['weights'] = self::weightMap(
             $value['weights'] ?? null,
             'typography.weights',
-            $source
+            $source,
         );
 
         return $typography;
@@ -436,7 +436,7 @@ final class ThemeTokens
             if (!in_array($style, ['solid', 'dashed', 'dotted', 'double', 'none'], true)) {
                 throw new ThemeException(sprintf(
                     'Theme %s: borders.style must be one of solid, dashed, dotted, double, none.',
-                    $source
+                    $source,
                 ));
             }
 
@@ -475,7 +475,7 @@ final class ThemeTokens
                     'Theme %s: %s.%s must be a CSS length string.',
                     $source,
                     $path,
-                    $name
+                    $name,
                 ));
             }
 
@@ -512,7 +512,7 @@ final class ThemeTokens
                     'Theme %s: %s.%s must be a number or CSS length string.',
                     $source,
                     $path,
-                    $name
+                    $name,
                 ));
             }
 
@@ -553,7 +553,7 @@ final class ThemeTokens
                     'Theme %s: %s.%s must be a font-weight number or keyword.',
                     $source,
                     $path,
-                    $name
+                    $name,
                 ));
             }
 
@@ -567,7 +567,7 @@ final class ThemeTokens
                     'Theme %s: %s.%s is not a valid font weight.',
                     $source,
                     $path,
-                    $name
+                    $name,
                 ));
             }
 
@@ -589,7 +589,7 @@ final class ThemeTokens
                     'Theme %s: unknown key [%s]%s.',
                     $source,
                     self::display($key),
-                    $path === '' ? '' : ' in '.$path
+                    $path === '' ? '' : ' in '.$path,
                 ));
             }
         }
@@ -601,7 +601,7 @@ final class ThemeTokens
             throw new ThemeException(sprintf(
                 'Theme %s: %s must use lowercase letters, digits and hyphens (for example "primary" or "2xl").',
                 $source,
-                $path
+                $path,
             ));
         }
     }
@@ -621,7 +621,7 @@ final class ThemeTokens
             throw new ThemeException(sprintf(
                 'Theme %s: %s is not a supported CSS color value.',
                 $source,
-                $path
+                $path,
             ));
         }
 
@@ -636,7 +636,7 @@ final class ThemeTokens
             throw new ThemeException(sprintf(
                 'Theme %s: %s must be a CSS length (for example 1rem, 16px, 0, clamp(...)).',
                 $source,
-                $path
+                $path,
             ));
         }
 
@@ -654,7 +654,7 @@ final class ThemeTokens
         throw new ThemeException(sprintf(
             'Theme %s: %s must be normal, a unitless number, or a CSS length.',
             $source,
-            $path
+            $path,
         ));
     }
 
@@ -670,7 +670,7 @@ final class ThemeTokens
             throw new ThemeException(sprintf(
                 'Theme %s: %s contains characters that are not allowed in a CSS token.',
                 $source,
-                $path
+                $path,
             ));
         }
 
@@ -683,7 +683,7 @@ final class ThemeTokens
             throw new ThemeException(sprintf(
                 'Theme %s: %s contains an unsafe CSS construct.',
                 $source,
-                $path
+                $path,
             ));
         }
 
@@ -696,7 +696,7 @@ final class ThemeTokens
             throw new ThemeException(sprintf(
                 'Theme %s: %s contains characters that cannot be used in generated comments.',
                 $source,
-                $path
+                $path,
             ));
         }
 

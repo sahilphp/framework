@@ -14,8 +14,6 @@ interface StoreInterface
 
     /**
      * Record one attempt for the key and return the gate result.
-     *
-     * @return RateLimitResult{permitted: bool, remaining: int, retryAfterSeconds: int}
      */
     public function increment(string $key): RateLimitResult;
 

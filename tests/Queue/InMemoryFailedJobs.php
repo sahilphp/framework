@@ -26,7 +26,7 @@ final class InMemoryFailedJobs implements FailedJobRepositoryContract
     {
         return array_values(array_filter(
             $this->jobs,
-            static fn (FailedJob $job): bool => $job->queue === $queue
+            static fn (FailedJob $job): bool => $job->queue === $queue,
         ));
     }
 

@@ -32,7 +32,7 @@ final class BuilderTest extends TestCase
             'user',
             'pass',
             [],
-            static fn (array $_): PDO => $recorder
+            static fn (array $_): PDO => $recorder,
         );
     }
 
@@ -61,7 +61,7 @@ final class BuilderTest extends TestCase
             'SELECT `id`, `name` FROM `users`'
             .' WHERE `status` = ? OR `vip` = ?'
             .' ORDER BY `id` DESC LIMIT 10 OFFSET 5',
-            $sql
+            $sql,
         );
         self::assertSame(['active', true], $params);
         self::assertStringNotContainsString('active', $sql, 'values must be placeholders, not inline');
@@ -79,7 +79,7 @@ final class BuilderTest extends TestCase
 
         self::assertSame(
             'SELECT * FROM `users` WHERE `role` IN (?, ?) AND `deleted_at` IS NULL AND `score` <> ?',
-            $sql
+            $sql,
         );
         self::assertSame(['admin', 'dev', 0], $params);
     }
@@ -96,7 +96,7 @@ final class BuilderTest extends TestCase
         self::assertSame(
             'SELECT `o`.`id`, `profiles`.`account` FROM `orders` AS `o`'
             .' LEFT JOIN `profiles` ON `profiles`.`user_id` = `o`.`user_id`',
-            $sql
+            $sql,
         );
         self::assertSame([], $params);
     }
@@ -111,7 +111,7 @@ final class BuilderTest extends TestCase
             null,
             null,
             [],
-            static fn (array $_): PDO => $recorder
+            static fn (array $_): PDO => $recorder,
         );
 
         $pgsqlConnection->table('users')->select('id', 'name')->where('vip', '=', true)->get();
@@ -136,7 +136,7 @@ final class BuilderTest extends TestCase
 
         self::assertSame(
             'INSERT INTO `users` (`name`, `email`, `age`) VALUES (?, ?, ?)',
-            $sql
+            $sql,
         );
         self::assertSame(['Ada', 'ada@example.test', 36], $params);
     }
@@ -159,7 +159,7 @@ final class BuilderTest extends TestCase
 
         self::assertSame(
             'UPDATE `users` SET `name` = ?, `score` = ? WHERE `id` = ?',
-            $sql
+            $sql,
         );
         self::assertSame(['Dev', 42, 7], $params);
     }
@@ -214,7 +214,7 @@ final class BuilderTest extends TestCase
     public function test_malicious_identifiers_are_refused(): void
     {
         try {
-            $this->connection->table("users`; DROP TABLE users; --");
+            $this->connection->table('users`; DROP TABLE users; --');
             self::fail('Expected an identifier rejection.');
         } catch (\InvalidArgumentException $exception) {
             self::assertStringContainsString('identifier', $exception->getMessage());
@@ -240,7 +240,7 @@ final class BuilderTest extends TestCase
 
         self::assertSame(
             'SELECT (COUNT(*) AS total), `name` FROM `stats` WHERE (LENGTH(name) > ?)',
-            $sql
+            $sql,
         );
         self::assertSame([3], $params);
     }

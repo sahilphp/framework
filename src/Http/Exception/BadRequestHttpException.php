@@ -23,7 +23,7 @@ final class BadRequestHttpException extends HttpException
     {
         return new self(
             sprintf('Malformed JSON request body: %s.', $previous->getMessage()),
-            $previous
+            $previous,
         );
     }
 }

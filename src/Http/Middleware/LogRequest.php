@@ -44,24 +44,27 @@ final class LogRequest implements MiddlewareContract
 
             $this->logger->record(
                 'request handled',
-                $this->context($request),
                 $response->status(),
+                $this->context($request),
             );
 
             return $response;
         } catch (\Throwable $throwable) {
             $this->logger->record(
                 'request errored',
-                $this->context($request),
                 $throwable instanceof HttpException
                     ? $throwable->statusCode()
                     : 500,
+                $this->context($request),
             );
 
             throw $throwable;
         }
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function context(Request $request): array
     {
         $payload = [];

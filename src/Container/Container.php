@@ -63,7 +63,7 @@ final class Container implements ContainerInterface
             $this->bindings[$abstract],
             $this->instances[$abstract],
             $this->shared[$abstract],
-            $this->aliases[$abstract]
+            $this->aliases[$abstract],
         );
 
         // Aliases that point at the replaced abstract must be re-registered.
@@ -213,7 +213,7 @@ final class Container implements ContainerInterface
 
         if (!is_object($resolved)) {
             throw new BindingException(
-                sprintf('Binding for [%s] produced a non-object value.', $abstract)
+                sprintf('Binding for [%s] produced a non-object value.', $abstract),
             );
         }
 
@@ -246,14 +246,14 @@ final class Container implements ContainerInterface
 
             throw new BindingException(
                 sprintf('Circular dependency detected: %s. ', $chain).
-                'Break the cycle with lazy resolution (closures, setters or explicit bindings).'
+                'Break the cycle with lazy resolution (closures, setters or explicit bindings).',
             );
         }
 
         if (!class_exists($class)) {
             throw new NotFoundException(
                 sprintf('No class named [%s] exists and no binding is registered for it. ', $class).
-                'Register one with bind() or singleton() first.'
+                'Register one with bind() or singleton() first.',
             );
         }
 
@@ -261,7 +261,7 @@ final class Container implements ContainerInterface
 
         if (!$reflection->isInstantiable()) {
             throw new BindingException(
-                sprintf('Class [%s] is not instantiable. Resolve it with a factory binding instead.', $class)
+                sprintf('Class [%s] is not instantiable. Resolve it with a factory binding instead.', $class),
             );
         }
 
@@ -276,7 +276,7 @@ final class Container implements ContainerInterface
         try {
             $arguments = array_map(
                 fn (ReflectionParameter $parameter): mixed => $this->resolveParameter($parameter, $class),
-                $constructor->getParameters()
+                $constructor->getParameters(),
             );
         } finally {
             unset($this->buildStack[$class]);
@@ -287,7 +287,7 @@ final class Container implements ContainerInterface
         } catch (Throwable $exception) {
             throw new BindingException(
                 sprintf('Could not instantiate [%s]: %s', $class, $exception->getMessage()),
-                previous: $exception
+                previous: $exception,
             );
         }
     }
@@ -303,8 +303,8 @@ final class Container implements ContainerInterface
                 sprintf(
                     'Unresolvable untyped parameter $%s while building [%s]. Give it a type-hinted dependency or a default value.',
                     $parameter->getName(),
-                    $concrete
-                )
+                    $concrete,
+                ),
             );
         }
 
@@ -324,8 +324,8 @@ final class Container implements ContainerInterface
             sprintf(
                 'Unresolvable parameter $%s while building [%s]. Give it a type-hinted dependency, a default value or nullable type.',
                 $parameter->getName(),
-                $concrete
-            )
+                $concrete,
+            ),
         );
     }
 
@@ -344,8 +344,8 @@ final class Container implements ContainerInterface
                 throw new BindingException(
                     sprintf(
                         'Binding [%s] is request-scoped but no scope is active. Open a scope with beginScope() (or run through Application::isolatedRequest()) before resolving it.',
-                        $abstract
-                    )
+                        $abstract,
+                    ),
                 );
             }
 
@@ -357,7 +357,7 @@ final class Container implements ContainerInterface
 
             if (!is_object($object)) {
                 throw new BindingException(
-                    sprintf('Scoped binding [%s] produced a non-object value; it cannot represent a request service.', $abstract)
+                    sprintf('Scoped binding [%s] produced a non-object value; it cannot represent a request service.', $abstract),
                 );
             }
 

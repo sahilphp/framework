@@ -53,7 +53,7 @@ final class PasswordResetManager
         $this->tokenRepository->create(
             $user->getAuthIdentifier(),
             $token,
-            $this->expirationMinutes
+            $this->expirationMinutes,
         );
 
         return $token;

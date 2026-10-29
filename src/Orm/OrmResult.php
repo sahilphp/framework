@@ -56,7 +56,7 @@ final class OrmResult implements IteratorAggregate, Countable, JsonSerializable
     {
         return array_map(
             static fn (Model $model): array => $model->toArray(),
-            $this->items
+            $this->items,
         );
     }
 

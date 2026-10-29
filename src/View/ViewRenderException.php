@@ -22,7 +22,7 @@ final class ViewRenderException extends ViewException
         return new self(
             sprintf('Rendering view [%s] failed: %s', $template, $failure->getMessage()),
             0,
-            $failure
+            $failure,
         );
     }
 }

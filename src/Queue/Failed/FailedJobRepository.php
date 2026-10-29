@@ -51,7 +51,7 @@ final class FailedJobRepository implements FailedJobRepositoryContract
                 $this->quote('exception'),
                 $this->quote('failed_at'),
             ),
-            [$job->id, $job->queue, $job->payload, $job->exception, $job->failedAt]
+            [$job->id, $job->queue, $job->payload, $job->exception, $job->failedAt],
         );
     }
 
@@ -69,7 +69,7 @@ final class FailedJobRepository implements FailedJobRepositoryContract
                 $this->quote('queue'),
                 $this->quote('failed_at'),
             ),
-            [$queue]
+            [$queue],
         )->rows();
 
         return array_map($this->hydrate(...), $rows);
@@ -88,7 +88,7 @@ final class FailedJobRepository implements FailedJobRepositoryContract
                 $this->quotedTable(),
                 $this->quote('id'),
             ),
-            [$id]
+            [$id],
         )->first();
 
         return $row === null ? null : $this->hydrate($row);
@@ -98,7 +98,7 @@ final class FailedJobRepository implements FailedJobRepositoryContract
     {
         $this->connection->execute(
             sprintf('DELETE FROM %s WHERE %s = ?', $this->quotedTable(), $this->quote('id')),
-            [$id]
+            [$id],
         );
     }
 
@@ -111,7 +111,7 @@ final class FailedJobRepository implements FailedJobRepositoryContract
                 $this->quotedTable(),
                 $this->quote('queue'),
             ),
-            [$queue]
+            [$queue],
         )->first();
 
         return $row === null ? 0 : (int) $row['total'];

@@ -56,7 +56,7 @@ final class Route
         foreach ($upper as $method) {
             if (!in_array($method, Request::SUPPORTED_METHODS, true)) {
                 throw new InvalidArgumentException(
-                    sprintf('HTTP: method [%s] is not supported by the framework; register valid ones instead.', $method)
+                    sprintf('HTTP: method [%s] is not supported by the framework; register valid ones instead.', $method),
                 );
             }
         }
@@ -130,7 +130,7 @@ final class Route
     {
         if (preg_match('/^[A-Za-z0-9._-]+$/', $routeName) !== 1) {
             throw new InvalidArgumentException(
-                sprintf('HTTP: corridor route name "[%s]" must be a URL-safe token (letters, digits, ._-).', $routeName)
+                sprintf('HTTP: corridor route name "[%s]" must be a URL-safe token (letters, digits, ._-).', $routeName),
             );
         }
 
@@ -206,19 +206,19 @@ final class Route
 
         if (!is_string($class) || $class === '' || !is_string($method) || $method === '') {
             throw new InvalidArgumentException(
-                sprintf('HTTP: route [%s] handler must be a Closure or a [class, method] pair.', $path)
+                sprintf('HTTP: route [%s] handler must be a Closure or a [class, method] pair.', $path),
             );
         }
 
         if (!class_exists($class)) {
             throw new InvalidArgumentException(
-                sprintf('HTTP: route [%s] handler class [%s] does not exist (is it autoloaded?).', $path, $class)
+                sprintf('HTTP: route [%s] handler class [%s] does not exist (is it autoloaded?).', $path, $class),
             );
         }
 
         if (!method_exists($class, $method)) {
             throw new InvalidArgumentException(
-                sprintf('HTTP: route [%s] handler [%s] does not exist on [%s].', $path, $method, $class)
+                sprintf('HTTP: route [%s] handler [%s] does not exist on [%s].', $path, $method, $class),
             );
         }
 
@@ -233,7 +233,7 @@ final class Route
     {
         if ($path === '' || !str_starts_with($path, '/')) {
             throw new InvalidArgumentException(
-                sprintf('HTTP: route path must start with a leading slash, got [%s].', $path)
+                sprintf('HTTP: route path must start with a leading slash, got [%s].', $path),
             );
         }
 
@@ -251,7 +251,7 @@ final class Route
 
             if (preg_match('/^[A-Za-z0-9._-]+$/', $segment) !== 1) {
                 throw new InvalidArgumentException(
-                    sprintf('HTTP: route path segment [%s] contains characters outside the safe set (letters, digits, "._-").', $segment)
+                    sprintf('HTTP: route path segment [%s] contains characters outside the safe set (letters, digits, "._-").', $segment),
                 );
             }
         }
@@ -264,7 +264,7 @@ final class Route
 
             if ($optionalSeen && !$isOptional) {
                 throw new InvalidArgumentException(
-                    sprintf('HTTP: route path [%s]: required parameters cannot follow optional ones.', $path)
+                    sprintf('HTTP: route path [%s]: required parameters cannot follow optional ones.', $path),
                 );
             }
 

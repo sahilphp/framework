@@ -16,6 +16,9 @@ use Sahil\Contracts\Cache\CacheContract;
  *   $cache->put('key', 'value', 3600);
  *   $value = $cache->get('key');
  */
+/**
+ * @implements CacheContract<mixed>
+ */
 final class RedisCache implements CacheContract
 {
     /** @var \Redis */
@@ -102,7 +105,7 @@ final class RedisCache implements CacheContract
     }
 
     /** {@inheritDoc} */
-    public function ttL(string $key): mixed
+    public function ttL(string $key): int|false
     {
         $ttl = $this->redis->ttl($key);
 

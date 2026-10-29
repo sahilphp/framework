@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Sahil\Http\Middleware;
 
 use Closure;
-use Sahil\Http\RateLimit\RateLimitResult;
 use Sahil\Http\RateLimit\StoreInterface;
 use Sahil\Http\Request;
 use Sahil\Http\Response;
@@ -22,20 +21,20 @@ use Sahil\Http\Response;
  */
 final class Throttle implements MiddlewareContract
 {
+    /**
+     * @param string         $key   bucket name passed to the store
+     * @param StoreInterface $store store that holds the counters
+     */
     public function __construct(
         private readonly string $key,
-        private readonly int $limit,
-        private readonly int $window,
-        private readonly ?StoreInterface $store = null,
+        private readonly StoreInterface $store,
     ) {
     }
 
     /** {@inheritDoc} */
     public function handle(Request $request, Closure $next): Response
     {
-        $store = $this->store ?? $this->resolveStore($request);
-
-        $result = $store->increment($this->key);
+        $result = $this->store->increment($this->key);
 
         if (!$result->allowed) {
             return Response::json([
@@ -49,17 +48,4 @@ final class Throttle implements MiddlewareContract
         return $next($request);
     }
 
-    private function resolveStore(Request $request): StoreInterface
-    {
-        $container = $request->attribute('container');
-
-        if (!$container instanceof \Sahil\Container\Container) {
-            throw new \RuntimeException('Rate limiting requires a store bound in the container.');
-        }
-
-        /** @var StoreInterface $store */
-        $store = $container->make(StoreInterface::class);
-
-        return $store;
-    }
 }

@@ -29,7 +29,7 @@ final class MigrationLockTest extends TestCase
             null,
             null,
             [],
-            static fn (array $_): PDO => $recorder
+            static fn (array $_): PDO => $recorder,
         );
     }
 
@@ -64,7 +64,7 @@ final class MigrationLockTest extends TestCase
             self::assertSame(
                 $expected,
                 $lock->acquire(),
-                sprintf('pg_try_advisory_lock returning %s must mean %s', var_export($returned, true), var_export($expected, true))
+                sprintf('pg_try_advisory_lock returning %s must mean %s', var_export($returned, true), var_export($expected, true)),
             );
         }
     }
@@ -93,7 +93,7 @@ final class MigrationLockTest extends TestCase
         self::assertSame('done', $result);
         self::assertSame(
             ['SELECT GET_LOCK(?, ?) AS acquired', 'SELECT RELEASE_LOCK(?) AS released'],
-            array_column($recorder->executions, 'sql')
+            array_column($recorder->executions, 'sql'),
         );
     }
 

@@ -52,7 +52,7 @@ final class RequestLogger
      * Record one event. The level is derived from the status code so the
      * same code path works for success and error paths.
      */
-    public function record(string $message, array $context = [], int $status): void
+    public function record(string $message, int $status = 200, array $context = []): void
     {
         $event = $this->structured($context, $status);
 
@@ -66,19 +66,22 @@ final class RequestLogger
         $this->logger->log($this->levelFor($status), $message, $event);
     }
 
+    /** @param array<string, mixed> $context */
     public function info(string $message, array $context = []): void
     {
-        $this->record($message, $context, 200);
+        $this->record($message, 200, $context);
     }
 
+    /** @param array<string, mixed> $context */
     public function warning(string $message, array $context = []): void
     {
-        $this->record($message, $context, 400);
+        $this->record($message, 400, $context);
     }
 
+    /** @param array<string, mixed> $context */
     public function error(string $message, array $context = []): void
     {
-        $this->record($message, $context, 500);
+        $this->record($message, 500, $context);
     }
 
     private function structured(array $context, int $status): array
@@ -91,7 +94,7 @@ final class RequestLogger
             'path' => $this->request ? $this->request->path() : '-',
             'status' => $status,
             'content_type' => $this->request ? $this->request->contentType() : null,
-            'request_id' => $this->requestId ?? ($this->request ? $this->request->generateRequestId() : null),
+            'request_id' => $this->requestId,
             'ip' => $this->request ? $this->request->clientIp() : null,
             'user_agent' => $this->request ? $this->request->header('User-Agent') : null,
             'context' => Redactor::flattenSafely($context),

@@ -14,7 +14,7 @@ final class EscaperTest extends TestCase
     {
         self::assertSame(
             '&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; &amp; &#039;a&#039;',
-            Escaper::html('<script>alert("x")</script> & \'a\'')
+            Escaper::html('<script>alert("x")</script> & \'a\''),
         );
     }
 

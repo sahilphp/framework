@@ -130,7 +130,7 @@ final class UiInstallerTest extends UiTestCase
         $report = $this->installer()->install(
             $this->projectPath,
             Profile::Tailwind,
-            new InstallOptions(merge: true, installDependencies: false)
+            new InstallOptions(merge: true, installDependencies: false),
         );
 
         self::assertContains('vite.config.js', $report->preserved);
@@ -154,7 +154,7 @@ final class UiInstallerTest extends UiTestCase
         $report = $this->installer()->install(
             $this->projectPath,
             Profile::Tailwind,
-            new InstallOptions(overwrite: true, installDependencies: false)
+            new InstallOptions(overwrite: true, installDependencies: false),
         );
 
         self::assertStringContainsString('UI profile', implode("\n", $report->lines()));
@@ -171,7 +171,7 @@ final class UiInstallerTest extends UiTestCase
         $report = $this->installer()->install(
             $this->projectPath,
             Profile::Bootstrap,
-            new InstallOptions(dryRun: true, installDependencies: false)
+            new InstallOptions(dryRun: true, installDependencies: false),
         );
 
         self::assertTrue($report->dryRun);
@@ -211,7 +211,7 @@ final class UiInstallerTest extends UiTestCase
         $report = $this->installer()->install(
             $this->projectPath,
             Profile::Tailwind,
-            new InstallOptions(overwrite: true, installDependencies: false)
+            new InstallOptions(overwrite: true, installDependencies: false),
         );
 
         self::assertNotSame([], $report->backups);
@@ -227,7 +227,7 @@ final class UiInstallerTest extends UiTestCase
         $report = $this->installer()->install(
             $this->projectPath,
             Profile::Tailwind,
-            new InstallOptions(installDependencies: false)
+            new InstallOptions(installDependencies: false),
         );
 
         $lines = implode("\n", $report->lines());
@@ -239,7 +239,7 @@ final class UiInstallerTest extends UiTestCase
     {
         return new UiInstaller(
             new ProcessRunner(pollMicroseconds: 1_000),
-            new ToolchainDetector(new ProcessRunner(pollMicroseconds: 1_000), $this->projectPath.'/no-bin')
+            new ToolchainDetector(new ProcessRunner(pollMicroseconds: 1_000), $this->projectPath.'/no-bin'),
         );
     }
 
@@ -255,7 +255,7 @@ final class UiInstallerTest extends UiTestCase
     {
         $files = [];
         $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($this->projectPath, \FilesystemIterator::SKIP_DOTS)
+            new \RecursiveDirectoryIterator($this->projectPath, \FilesystemIterator::SKIP_DOTS),
         );
 
         /** @var \SplFileInfo $item */

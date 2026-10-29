@@ -125,7 +125,7 @@ final class UiStatusTest extends UiTestCase
 
         self::assertSame(
             ['public/build/assets/bootstrap.css', 'public/build/assets/bootstrap.js'],
-            $report->missingAssets
+            $report->missingAssets,
         );
     }
 
@@ -133,7 +133,7 @@ final class UiStatusTest extends UiTestCase
     {
         (new UiInstaller(
             new ProcessRunner(pollMicroseconds: 1_000),
-            $this->detector()
+            $this->detector(),
         ))->install($this->projectPath, $profile, new InstallOptions(installDependencies: false));
     }
 

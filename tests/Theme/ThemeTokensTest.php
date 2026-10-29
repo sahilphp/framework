@@ -33,7 +33,7 @@ final class ThemeTokensTest extends TestCase
 
         self::assertSame(
             ['light' => '#123456', 'dark' => '#123456'],
-            $tokens->colors['brand']
+            $tokens->colors['brand'],
         );
     }
 

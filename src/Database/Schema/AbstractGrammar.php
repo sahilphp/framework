@@ -53,7 +53,7 @@ abstract class AbstractGrammar implements SchemaGrammar
             'CREATE TABLE %s%s (%s)',
             $table->wantsIfNotExists() ? 'IF NOT EXISTS ' : '',
             $this->driver->quoteIdentifier($table->name()),
-            implode(', ', $definitions)
+            implode(', ', $definitions),
         );
 
         return [$sql, ...$this->postCreateStatements($table)];
@@ -90,7 +90,7 @@ abstract class AbstractGrammar implements SchemaGrammar
             $statements[] = sprintf(
                 'ALTER TABLE %s DROP COLUMN %s',
                 $quotedTable,
-                $this->driver->quoteIdentifier($column)
+                $this->driver->quoteIdentifier($column),
             );
         }
 
@@ -98,7 +98,7 @@ abstract class AbstractGrammar implements SchemaGrammar
             $statements[] = sprintf(
                 'ALTER TABLE %s ADD COLUMN %s',
                 $quotedTable,
-                $this->compileColumn($column)
+                $this->compileColumn($column),
             );
         }
 
@@ -111,14 +111,14 @@ abstract class AbstractGrammar implements SchemaGrammar
             $statements[] = sprintf(
                 'ALTER TABLE %s ADD %s',
                 $quotedTable,
-                $this->compileForeignKey($table->name(), $foreignKey)
+                $this->compileForeignKey($table->name(), $foreignKey),
             );
         }
 
         if ($statements === []) {
             throw new SchemaException(sprintf(
                 'Alteration of table [%s] changes nothing; remove the empty Schema::table() call.',
-                $table->name()
+                $table->name(),
             ));
         }
 
@@ -180,7 +180,7 @@ abstract class AbstractGrammar implements SchemaGrammar
             throw new SchemaException(sprintf(
                 'The [%s] dialect has no unsigned integer types; drop unsigned() on column [%s].',
                 $this->dialect(),
-                $column->name()
+                $column->name(),
             ));
         }
 
@@ -224,7 +224,7 @@ abstract class AbstractGrammar implements SchemaGrammar
             $this->driver->quoteIdentifier($this->foreignKeyName($table, $foreignKey)),
             $this->driver->quoteIdentifier($foreignKey->column()),
             $this->driver->quoteIdentifier((string) $foreignKey->referencedTable()),
-            $this->driver->quoteIdentifier((string) $foreignKey->referencedColumn())
+            $this->driver->quoteIdentifier((string) $foreignKey->referencedColumn()),
         );
 
         if ($foreignKey->deleteAction() !== null) {
@@ -266,7 +266,7 @@ abstract class AbstractGrammar implements SchemaGrammar
             if (is_nan($value) || is_infinite($value)) {
                 throw new SchemaException(sprintf(
                     'Default for column [%s] is not a finite number.',
-                    $column
+                    $column,
                 ));
             }
 
@@ -286,7 +286,7 @@ abstract class AbstractGrammar implements SchemaGrammar
         return [sprintf(
             'CONSTRAINT %s UNIQUE (%s)',
             $this->driver->quoteIdentifier($this->indexName($table, $index)),
-            $this->quoteList($index->columns())
+            $this->quoteList($index->columns()),
         )];
     }
 
@@ -298,7 +298,7 @@ abstract class AbstractGrammar implements SchemaGrammar
         return [sprintf(
             'CONSTRAINT %s PRIMARY KEY (%s)',
             $this->driver->quoteIdentifier($this->indexName($table, $index)),
-            $this->quoteList($index->columns())
+            $this->quoteList($index->columns()),
         )];
     }
 
@@ -309,7 +309,7 @@ abstract class AbstractGrammar implements SchemaGrammar
     {
         return implode(', ', array_map(
             fn (string $column): string => $this->driver->quoteIdentifier($column),
-            $columns
+            $columns,
         ));
     }
 
@@ -337,7 +337,7 @@ abstract class AbstractGrammar implements SchemaGrammar
     {
         $flat = implode('_', array_map(
             static fn (string $column): string => str_replace('.', '_', $column),
-            $columns
+            $columns,
         ));
 
         $candidate = str_replace('.', '_', $table).'_'.$flat.'_'.$kind;

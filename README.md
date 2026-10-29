@@ -12,11 +12,13 @@ frontend asset pipeline. See "Roadmap" below for remaining work.
 > Application entry points — `public/index.php`, `bootstrap/app.php`,
 > `bin/sahil`, and the `start` Composer script — are owned by the
 > starter-kit application. This package does not install a CLI binary or a
-> web front controller.
+> web front controller. Every `php bin/sahil …` example in this document is
+> therefore a command for the starter-kit (or any application) root, not for
+> this package.
 
 ## Requirements
 
-- PHP 8.2+ (developed and tested on PHP 8.4)
+- PHP 8.1+ (the version `composer.json` requires)
 - Composer 2.x
 - Node.js 20.19+ or 22.12+ and a package manager (npm, pnpm, yarn or bun)
   are required **only** for the optional UI asset commands.
@@ -29,24 +31,67 @@ database layer, ORM and migrations. Also supported when present: `mbstring`
 ## Installation
 
 ```bash
-composer install
+composer require sahilphp/framework
+```
+
+The package is a library: it declares no binary and no front controller. To
+create a runnable application, install the starter kit instead:
+
+```bash
+composer create-project sahilphp/starter-kit my-app
 ```
 
 ## Directory layout
 
-| Directory        | Purpose                                                    |
-|------------------|------------------------------------------------------------|
-| `src/`           | Framework source (`Sahil\` namespace)                      |
-| `app/`           | Application code (`App\` namespace; starter-kit)          |
-| `public/`        | Application HTTP entry point (starter-kit)                 |
-| `bin/`           | Application CLI entry point (`bin/sahil`; starter-kit)     |
-| `bootstrap/`     | Application bootstrap (starter-kit)                        |
-| `config/`        | Configuration (plain arrays keyed by file name)            |
-| `database/`      | Migrations and seeders (`database/migrations`, `database/seeders`) |
-| `routes/`       | Route definitions (registered by `App\Providers\WebRoutesProvider`) |
-| `views/`         | Templates, sample layouts and reusable partials            |
-| `storage/`       | Runtime storage: logs, cache, uploads                      |
-| `tests/`         | PHPUnit test suite (`Sahil\Tests\` namespace)               |
+This package is a Composer **library** (`"type": "library"`): source under
+`src/` and a test suite under `tests/`. It is not an application skeleton. No
+front controller, CLI binary, configuration, routes, templates or storage
+directory ships with it — the application that requires the package wires
+those itself.
+
+### This package
+
+| Path | Purpose |
+|------|---------|
+| `src/` | Framework source, autoloaded as `Sahil\` (`autoload.psr-4`) |
+| `src/Support/helpers.php` | Global helper functions, autoloaded through `autoload.files` |
+| `tests/` | PHPUnit suite, autoloaded as `Sahil\Tests\` (`autoload-dev`) |
+| `phpunit.xml` | PHPUnit configuration used by `composer test` |
+| `composer.json` | Package manifest: requirements, autoloading, quality-gate scripts |
+| `composer.lock` | Dependency set the package's tests run against |
+| `LICENSE` | MIT license text (see "License" below) |
+| `README.md` | This document |
+| `.gitignore` | Ignores `vendor/`, `.phpunit.cache/` and local artefacts |
+
+That is the whole tree at the package root. A `vendor/` directory appears after
+`composer install`; it is generated locally, git-ignored, and not part of the
+published package.
+
+### The starter-kit application (separate repository)
+
+`sahilphp/framework` supplies the behaviour; `sahilphp/starter-kit` is the
+application that requires it and owns every runnable path — entry points,
+configuration, routes, templates and storage. The paths below exist in **that**
+repository only and are **not shipped in this package**; they are listed so
+that documentation elsewhere in this README is easy to follow:
+
+| Path (starter-kit root) | Purpose |
+|------|---------|
+| `app/` | Application code, `App\` namespace: `Http/` controllers, `Providers/` |
+| `bin/sahil` | CLI entry point; dispatches `ui:*` to `Sahil\Ui\UiConsole`, then boots the application |
+| `bootstrap/app.php`, `bootstrap/providers.php` | Bootstrap entry point (`sahil_bootstrap()`) and provider manifest |
+| `config/` | Configuration arrays, one file per namespace (`config/app.php`, …) |
+| `database/` | `database/migrations/` and `database/seeders/` |
+| `public/` | `public/index.php` HTTP front controller plus served assets (`public/css`, `public/js`, `public/build`) |
+| `routes/` | Route table (`routes/web.php`) and scheduled tasks (`routes/schedule.php`) |
+| `views/` | Layouts, pages and partials with the `.sahil.php` extension |
+| `storage/` | Runtime storage: logs, compiled views, sessions, cache, uploads |
+| `resources/` | Frontend sources used by the UI profiles |
+| `tests/` | Application test suite, `Tests\` namespace |
+
+Both lists are relative to their own repository root, so the same name can
+mean different things: this package's `tests/` is the `Sahil\Tests\` suite,
+while the starter-kit's `tests/` is the application's `Tests\` suite.
 
 ## Local development
 
@@ -68,9 +113,27 @@ composer fix-style      # PHP-CS-Fixer auto-fix
 
 ## UI installation & assets
 
-SahilPHP ships a standalone UI installer and asset pipeline. The `ui:*`
+The UI installer and asset pipeline are implemented in this package, but the
+`bin/sahil` executable is **not**: `composer.json` declares no `bin` entry and
+this repository has no `bin/` directory. The binary belongs to the starter-kit
+application, and the pipeline it calls is `Sahil\Ui\UiConsole`. The `ui:*`
 commands read the project directory directly, so they work before the
 application boots and do not require a database connection.
+
+Every `php bin/sahil ui:*` example below is a command for the **starter-kit
+(or any application) root**, where that wrapper exists. In a project without
+`bin/sahil`, call the console class from your own entry point:
+
+```php
+<?php
+require 'vendor/autoload.php';
+
+// command, its arguments, project root; returns the process exit code
+exit((new Sahil\Ui\UiConsole())->run('ui:status', [], __DIR__));
+```
+
+The command names are listed in `Sahil\Ui\UiConsole::COMMANDS`
+(`ui:install`, `ui:dev`, `ui:build`, `ui:status`, `ui:theme`).
 
 **Prerequisites:** Node.js 20.19+ or 22.12+ and one package manager. The
 installer detects `pnpm-lock.yaml`, `yarn.lock`, `bun.lockb`/`bun.lock` or
@@ -93,6 +156,7 @@ profile and generated file list), and append the required entries to
 ### Installing
 
 ```bash
+# Run from the starter-kit application root.
 # Tailwind CSS v4 (installs npm dependencies as well)
 php bin/sahil ui:install tailwind
 
@@ -159,8 +223,10 @@ php bin/sahil ui:build --path=/srv/apps/example
 
 External programs are executed as argument vectors through `proc_open()`
 with no shell, so profile names, paths and Vite flags cannot become shell
-syntax. See [`docs/UI_ASSETS.md`](docs/UI_ASSETS.md) for the full command
-reference, merge rules and troubleshooting.
+syntax. The implementation lives in [`src/Ui/`](src/Ui/): `UiConsole` parses
+arguments and prints the report, `UiInstaller` generates the profile files,
+`PackageJsonMerger` holds the merge rules, `ToolchainDetector` detects the
+package manager and `StatusReport` covers the `ui:status` checks.
 
 ### Optional theme tokens
 
@@ -183,9 +249,9 @@ a runtime CSS-variable bridge plus an optional Sass variable file, and the
 plain profile receives the same neutral custom properties.
 
 The generator is a build-time command only. It is not a runtime dependency,
-and `ui:install` continues to produce a complete profile without it. See
-[`docs/THEMING.md`](docs/THEMING.md) for the token format, mapping rules,
-light/dark behavior, Bootstrap Sass limitations and accessibility guidance.
+and `ui:install` continues to produce a complete profile without it. The token
+format, mapping rules, light/dark behavior and Bootstrap Sass limitations are
+defined in [`src/Theme/`](src/Theme/) (`Sahil\Theme\ThemeInstaller`).
 
 ### Templates and asset helpers
 
@@ -205,18 +271,21 @@ never hand-build development-server or production-build URLs:
 so the framework never loads both CSS frameworks implicitly. Page-specific
 files are added through the `head` and `scripts` sections of the layout.
 
-Sample layouts for Tailwind, Bootstrap and plain CSS live in `views/layouts/`;
-the matching example page at `/ui-kit` demonstrates forms, validation errors,
-alerts, a responsive table, shared navigation and responsive grids.
+This package ships no templates: `views/` belongs to the application. The
+starter-kit holds the sample layouts for Tailwind, Bootstrap and plain CSS in
+its `views/layouts/`, and its `/ui-kit` page demonstrates forms, validation
+errors, alerts, a responsive table, shared navigation and responsive grids.
 
-See [`docs/VIEW_ASSETS.md`](docs/VIEW_ASSETS.md) for the service interface,
-configuration (`ASSET_PROFILE`, `ASSET_MODE`, `ASSET_URL`), escaping rules and
-sample templates.
+See [`src/Assets/`](src/Assets/) for the service interface and the
+`ASSET_PROFILE`, `ASSET_MODE` and `ASSET_URL` configuration keys referenced
+above; the starter-kit's `views/layouts/` provides the sample usage.
 
 ## Environment
 
-Copy `.env.example` to `.env` and adjust per deployment. `.env` is git-ignored;
-never commit real credentials.
+Configuration and environment files belong to the application: this package
+ships neither `.env` nor `.env.example`. In the starter-kit root, copy its
+`.env.example` to `.env` and adjust per deployment — `.env` is git-ignored
+there, so never commit real credentials.
 
 ## Container & services (Phase 1–2)
 
@@ -391,7 +460,7 @@ installed on the kernel by `App\Providers\ObservabilityProvider`, which
 is distinguishable from HTTP errors at the API level: configuration
 failures occur before requests can dispatch.
 
-**CLI** (`bin/sahil`):
+**CLI** (the starter-kit's `bin/sahil`):
 - `about` — application facts (name, environment, debug on/off, timezone, PHP),
 - `config:show [namespace]` — secret-safe dotted configuration dump,
 - `env:check` — documented variable names only (values are never
@@ -1750,3 +1819,17 @@ MAIL_QUEUE_NAME=emails
   channel-based notifications, credential-free logging)
 - Upcoming: security layer (CSRF, sessions), a full console engine, view
   layer.
+
+## Contributing, security and changelog
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) — development setup and quality gates
+  (`composer lint`, `test`, `analyse`, `check-style`).
+- [SECURITY.md](SECURITY.md) — how to report a vulnerability privately, and
+  the supported versions.
+- [CHANGELOG.md](CHANGELOG.md) — release history in Keep a Changelog format.
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — community expectations.
+
+## License
+
+SahilPHP is released under the MIT License. See [LICENSE](LICENSE) for the
+full text.

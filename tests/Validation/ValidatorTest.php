@@ -10,7 +10,6 @@ use Sahil\Validation\FormInput;
 use Sahil\Validation\Presets;
 use Sahil\Validation\RuleContract;
 use Sahil\Validation\ValidationException;
-use Sahil\Validation\ValidationResult;
 use Sahil\Validation\Validator;
 
 /**
@@ -132,7 +131,7 @@ final class ValidatorTest extends TestCase
 
         self::assertSame(
             ['This field must be an integer.'],
-            $validator->validate(['name' => 'abc'])->errors()['name']
+            $validator->validate(['name' => 'abc'])->errors()['name'],
         );
     }
 
@@ -220,11 +219,11 @@ final class ValidatorTest extends TestCase
         self::assertTrue($validator->validate(['status' => 'published', 'blacklist' => 'guest'])->passes());
         self::assertSame(
             ['This field must be one of: draft, published.'],
-            $validator->validate(['status' => 'archived', 'blacklist' => 'guest'])->errors()['status']
+            $validator->validate(['status' => 'archived', 'blacklist' => 'guest'])->errors()['status'],
         );
         self::assertSame(
             ['This field must not be one of: root, admin.'],
-            $validator->validate(['status' => 'draft', 'blacklist' => 'admin'])->errors()['blacklist']
+            $validator->validate(['status' => 'draft', 'blacklist' => 'admin'])->errors()['blacklist'],
         );
     }
 
@@ -325,7 +324,7 @@ final class ValidatorTest extends TestCase
             self::assertTrue($validator->validate(['bio' => $evil])->fails(), "control char payload [$evil]");
             self::assertStringContainsString(
                 'control characters',
-                $validator->validate(['bio' => $evil])->errors()['bio'][0]
+                $validator->validate(['bio' => $evil])->errors()['bio'][0],
             );
         }
 
@@ -408,7 +407,7 @@ final class ValidatorTest extends TestCase
             [
                 'email.required' => 'We need your email address.',
                 'age' => 'Age must be a whole number.',
-            ]
+            ],
         );
 
         $errors = $validator->validate([])->errors();
@@ -470,7 +469,7 @@ final class ValidatorTest extends TestCase
 
         self::assertSame(
             ['This field is required.', 'This field is required.'],
-            $result->errorLines()
+            $result->errorLines(),
         );
     }
 
@@ -539,7 +538,7 @@ final class ValidatorTest extends TestCase
         self::assertSame(
             ['name' => 'Ada'],
             $result->data(),
-            'unvalidated extra fields (name2) never appear in validated data'
+            'unvalidated extra fields (name2) never appear in validated data',
         );
         self::assertArrayNotHasKey('name2', $result->data());
     }

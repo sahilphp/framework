@@ -78,7 +78,7 @@ final class SchemaGrammarTest extends TestCase
             .', "email" VARCHAR(190) NOT NULL UNIQUE'
             .', "active" BOOLEAN NOT NULL DEFAULT TRUE'
             .')',
-            $statements[0]
+            $statements[0],
         );
         self::assertSame('CREATE INDEX "users_email_idx" ON "users" ("email")', $statements[1]);
     }
@@ -114,11 +114,11 @@ final class SchemaGrammarTest extends TestCase
         // MySQL treats backslashes as escapes; PostgreSQL does not.
         self::assertStringContainsString(
             '`note` VARCHAR(255) NOT NULL DEFAULT \'back\\\\slash and \'\'quote\'\'\'',
-            $this->mysql()->compileCreate($mysql)[0]
+            $this->mysql()->compileCreate($mysql)[0],
         );
         self::assertStringContainsString(
             '"note" VARCHAR(255) NOT NULL DEFAULT \'back\\slash and \'\'quote\'\'\'',
-            $this->pgsql()->compileCreate($pgsql)[0]
+            $this->pgsql()->compileCreate($pgsql)[0],
         );
     }
 
@@ -283,7 +283,7 @@ final class SchemaGrammarTest extends TestCase
         $table->id();
         $table->index(
             ['a_very_long_column_name_here', 'another_very_long_column_name', 'third_long_column_name'],
-            null
+            null,
         );
 
         $mysql = $this->mysql()->compileCreate($table)[0];
@@ -292,7 +292,7 @@ final class SchemaGrammarTest extends TestCase
         self::assertLessThanOrEqual(
             \Sahil\Database\Identifier::MAX_SEGMENT_LENGTH,
             strlen($matches[1]),
-            'the derived name must satisfy the identifier validator'
+            'the derived name must satisfy the identifier validator',
         );
     }
 
@@ -322,7 +322,7 @@ final class SchemaGrammarTest extends TestCase
 
         self::assertStringContainsString(
             'CONSTRAINT "user_roles_pkey" PRIMARY KEY ("user_id", "role_id")',
-            $this->pgsql()->compileCreate($pgsql)[0]
+            $this->pgsql()->compileCreate($pgsql)[0],
         );
     }
 

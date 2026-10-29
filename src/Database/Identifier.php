@@ -40,14 +40,14 @@ final class Identifier
 
         if (count($segments) > 2) {
             throw new InvalidArgumentException(
-                sprintf('Identifier [%s] has more than two segments.', $identifier)
+                sprintf('Identifier [%s] has more than two segments.', $identifier),
             );
         }
 
         foreach ($segments as $segment) {
             if (preg_match(self::SEGMENT_PATTERN, $segment) !== 1) {
                 throw new InvalidArgumentException(
-                    sprintf('Unsupported SQL identifier segment [%s].', $segment)
+                    sprintf('Unsupported SQL identifier segment [%s].', $segment),
                 );
             }
         }

@@ -22,7 +22,7 @@ final class ViewNotFoundException extends ViewException
         parent::__construct(sprintf(
             'View [%s] not found. Searched: %s.',
             $template,
-            $searched === [] ? '(no view directories configured)' : implode(', ', $searched)
+            $searched === [] ? '(no view directories configured)' : implode(', ', $searched),
         ));
     }
 

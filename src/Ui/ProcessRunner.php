@@ -46,7 +46,7 @@ final class ProcessRunner
 
             throw new UiException(sprintf(
                 'Unable to start [%s]. Check that the executable exists and is runnable.',
-                implode(' ', $command)
+                implode(' ', $command),
             ));
         }
 
@@ -86,7 +86,7 @@ final class ProcessRunner
         if (!is_resource($process)) {
             throw new UiException(sprintf(
                 'Unable to start [%s]. Check that the executable exists and is runnable.',
-                implode(' ', $command)
+                implode(' ', $command),
             ));
         }
 

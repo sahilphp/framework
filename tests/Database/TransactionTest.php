@@ -32,7 +32,7 @@ final class TransactionTest extends TestCase
             null,
             null,
             [],
-            static fn (array $_): PDO => $recorder
+            static fn (array $_): PDO => $recorder,
         );
     }
 
@@ -45,7 +45,7 @@ final class TransactionTest extends TestCase
     {
         return array_map(
             static fn (array $execution): string => (string) $execution['sql'],
-            $this->recorder->executions
+            $this->recorder->executions,
         );
     }
 
@@ -92,7 +92,7 @@ final class TransactionTest extends TestCase
 
         self::assertSame(
             ['BEGIN', 'OUTER', 'SAVEPOINT sahil_sp2', 'INNER', 'RELEASE SAVEPOINT sahil_sp2', 'COMMIT'],
-            $this->statements()
+            $this->statements(),
         );
     }
 
@@ -124,7 +124,7 @@ final class TransactionTest extends TestCase
         self::assertSame(
             ['BEGIN', 'OUTER', 'SAVEPOINT sahil_sp2', 'INNER', 'ROLLBACK TO SAVEPOINT sahil_sp2',
                 'RELEASE SAVEPOINT sahil_sp2', 'OUTER-AFTER', 'COMMIT'],
-            $this->statements()
+            $this->statements(),
         );
     }
 
@@ -179,7 +179,7 @@ final class TransactionTest extends TestCase
         self::assertSame(
             ['BEGIN', 'OUTER', 'SAVEPOINT sahil_sp2', 'INNER', 'ROLLBACK TO SAVEPOINT sahil_sp2',
                 'RELEASE SAVEPOINT sahil_sp2', 'ROLLBACK'],
-            $this->statements()
+            $this->statements(),
         );
         self::assertSame(0, $this->connection->transactionDepth());
     }

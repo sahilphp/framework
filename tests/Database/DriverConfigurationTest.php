@@ -21,13 +21,13 @@ final class DriverConfigurationTest extends TestCase
 
         self::assertSame(
             'mysql:host=db.internal;port=3306;dbname=sahil;charset=utf8mb4',
-            $driver->dsn(['host' => 'db.internal', 'port' => 3306, 'database' => 'sahil'])
+            $driver->dsn(['host' => 'db.internal', 'port' => 3306, 'database' => 'sahil']),
         );
 
         // missing port and charset fall back safely
         self::assertSame(
             'mysql:host=127.0.0.1;port=;dbname=x;charset=utf8mb4',
-            $driver->dsn(['host' => '127.0.0.1', 'database' => 'x', 'charset' => null])
+            $driver->dsn(['host' => '127.0.0.1', 'database' => 'x', 'charset' => null]),
         );
     }
 
@@ -37,7 +37,7 @@ final class DriverConfigurationTest extends TestCase
         $dsn = $driver->dsn([
             'host' => 'h',
             'database' => 'db',
-            'charset' => "utf8;DROP SCHEMA x",
+            'charset' => 'utf8;DROP SCHEMA x',
         ]);
 
         self::assertStringNotContainsString('DROP', $dsn);
@@ -74,7 +74,7 @@ final class DriverConfigurationTest extends TestCase
     {
         self::assertSame(
             'pgsql:host=127.0.0.1;port=5432;dbname=sahil',
-            (new PostgresDriver())->dsn(['host' => '127.0.0.1', 'port' => 5432, 'database' => 'sahil'])
+            (new PostgresDriver())->dsn(['host' => '127.0.0.1', 'port' => 5432, 'database' => 'sahil']),
         );
     }
 

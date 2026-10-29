@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Sahil\Tests\View;
 
 use PHPUnit\Framework\TestCase;
-use Sahil\View\TemplateResolver;
 use Sahil\View\ViewException;
 use Sahil\View\ViewNotFoundException;
 

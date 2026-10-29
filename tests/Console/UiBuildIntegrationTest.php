@@ -56,7 +56,7 @@ final class UiBuildIntegrationTest extends FrameworkTestCase
 
         self::assertStringContainsString(
             '--sahil-color-primary',
-            (string) file_get_contents($project.'/public/build/assets/tailwind.css')
+            (string) file_get_contents($project.'/public/build/assets/tailwind.css'),
         );
     }
 
@@ -69,7 +69,7 @@ final class UiBuildIntegrationTest extends FrameworkTestCase
 
         self::assertStringContainsString(
             '--sahil-color-primary',
-            (string) file_get_contents($project.'/public/build/assets/bootstrap.css')
+            (string) file_get_contents($project.'/public/build/assets/bootstrap.css'),
         );
     }
 
@@ -83,11 +83,11 @@ final class UiBuildIntegrationTest extends FrameworkTestCase
 
         self::assertStringContainsString(
             '--sahil-color-primary',
-            (string) file_get_contents($project.'/public/build/assets/tailwind.css')
+            (string) file_get_contents($project.'/public/build/assets/tailwind.css'),
         );
         self::assertStringContainsString(
             '--sahil-color-primary',
-            (string) file_get_contents($project.'/public/build/assets/bootstrap.css')
+            (string) file_get_contents($project.'/public/build/assets/bootstrap.css'),
         );
     }
 
@@ -97,7 +97,7 @@ final class UiBuildIntegrationTest extends FrameworkTestCase
 
         self::assertStringContainsString(
             '--sahil-color-primary',
-            (string) file_get_contents($project.'/public/build/assets/app.css')
+            (string) file_get_contents($project.'/public/build/assets/app.css'),
         );
     }
 
@@ -107,7 +107,7 @@ final class UiBuildIntegrationTest extends FrameworkTestCase
             'tailwind',
             ['public/build/assets/tailwind.css'],
             theme: true,
-            view: '<div class="bg-primary p-4 rounded-md"></div>'."\n"
+            view: '<div class="bg-primary p-4 rounded-md"></div>'."\n",
         );
 
         $css = (string) file_get_contents($project.'/public/build/assets/tailwind.css');
@@ -188,7 +188,7 @@ final class UiBuildIntegrationTest extends FrameworkTestCase
             if (!is_file($this->nodeModulesPath().'/'.$package.'/package.json')) {
                 self::markTestSkipped(sprintf(
                     'Frontend dependency [%s] is not installed; run `npm install` to enable build integration tests.',
-                    $package
+                    $package,
                 ));
             }
         }

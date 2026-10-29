@@ -159,7 +159,7 @@ final class AuthorizationTest extends TestCase
             ['id' => $id, 'email' => 'alice@example.test', 'password' => 'x'],
             $roles,
             $permissions,
-            $verified
+            $verified,
         );
     }
 }

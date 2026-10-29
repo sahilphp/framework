@@ -60,7 +60,7 @@ final class ColumnDefinition
             throw new SchemaException(sprintf(
                 'Unsupported column type [%s]; supported: %s.',
                 $type,
-                implode(', ', self::TYPES)
+                implode(', ', self::TYPES),
             ));
         }
 
@@ -87,7 +87,7 @@ final class ColumnDefinition
             throw new SchemaException(sprintf(
                 'Default value for column [%s] must be scalar, null or an Expression, got %s.',
                 $this->name,
-                get_debug_type($value)
+                get_debug_type($value),
             ));
         }
 
@@ -152,7 +152,7 @@ final class ColumnDefinition
                 'Precision/scale for column [%s] are invalid (%d, %d).',
                 $this->name,
                 $precision,
-                $scale
+                $scale,
             ));
         }
 

@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Sahil\Tests\Http;
 
 use PHPUnit\Framework\TestCase;
-use Sahil\Container\Container;
-use Sahil\Contracts\Foundation\ApplicationContract;
 use Sahil\Foundation\Application;
 use Sahil\Foundation\ServiceProvider;
 use Sahil\Http\Kernel;
@@ -77,7 +75,7 @@ final class KernelTest extends TestCase
 
         $kernel = self::kernelWith(
             [Route::get('/inner', static fn (Request $request): Response => Response::text('done'))],
-            middleware: [new HeaderTagging($trace, 'outer'), new HeaderTagging($trace, 'inner')]
+            middleware: [new HeaderTagging($trace, 'outer'), new HeaderTagging($trace, 'inner')],
         );
 
         $response = $kernel->handle(self::request('/inner'));
@@ -93,7 +91,7 @@ final class KernelTest extends TestCase
 
         $kernel = self::kernelWith(
             [Route::get('/inner', static fn (): Response => Response::text('done'))->middleware(new HeaderTagging($trace, 'route'))],
-            middleware: [new HeaderTagging($trace, 'global')]
+            middleware: [new HeaderTagging($trace, 'global')],
         );
 
         $response = $kernel->handle(self::request('/inner'));

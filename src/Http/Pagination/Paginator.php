@@ -23,20 +23,25 @@ use Sahil\Orm\PageResult;
  */
 final class Paginator
 {
+    /**
+     * @param int|null $perPage explicit page size, overriding the result's own
+     */
     public function __construct(
         private readonly PageResult $page,
-        private readonly int $defaultPerPage = 20,
+        private readonly ?int $perPage = null,
     ) {
     }
 
+    /**
+     * Build a paginator, honouring a `perPage` query parameter (1–1000).
+     */
     public static function forRequest(Request $request, PageResult $page): self
     {
-        $default = max(1, (int) $request->queryParameter('perPage', (string) $page->perPage));
-        $default = min($default, 1000);
+        $requested = $request->queryParameter('perPage');
 
         return new self(
             page: $page,
-            defaultPerPage: $default,
+            perPage: $requested === null ? null : max(1, min((int) $requested, 1000)),
         );
     }
 
@@ -65,7 +70,7 @@ final class Paginator
 
     public function perPage(): int
     {
-        return $this->page->perPage;
+        return $this->perPage ?? $this->page->perPage;
     }
 
     public function currentPage(): int

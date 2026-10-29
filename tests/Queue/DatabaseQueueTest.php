@@ -44,13 +44,13 @@ final class DatabaseQueueTest extends TestCase
             'user',
             'pass',
             [],
-            static fn (array $_): PDO => $recorder
+            static fn (array $_): PDO => $recorder,
         );
 
         $this->queue = new DatabaseQueue(
             $this->connection,
             'jobs',
-            static fn (): DateTimeImmutable => new DateTimeImmutable('2026-10-28 10:00:00', new DateTimeZone('UTC'))
+            static fn (): DateTimeImmutable => new DateTimeImmutable('2026-10-28 10:00:00', new DateTimeZone('UTC')),
         );
     }
 
@@ -61,7 +61,7 @@ final class DatabaseQueueTest extends TestCase
     {
         return array_values(array_filter(
             $this->recorder->executions,
-            static fn (array $execution): bool => !in_array($execution['sql'], ['BEGIN', 'COMMIT', 'ROLLBACK'], true)
+            static fn (array $execution): bool => !in_array($execution['sql'], ['BEGIN', 'COMMIT', 'ROLLBACK'], true),
         ));
     }
 
@@ -74,11 +74,11 @@ final class DatabaseQueueTest extends TestCase
         self::assertSame(
             'INSERT INTO `jobs` (`id`, `queue`, `payload`, `attempts`, `available_at`, `created_at`)'
             .' VALUES (?, ?, ?, ?, ?, ?)',
-            $sql
+            $sql,
         );
         self::assertSame(
             [$id, 'emails', '{"payload":1}', 0, '2026-10-28 10:00:30', '2026-10-28 10:00:00'],
-            $params
+            $params,
         );
         self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $id);
     }
@@ -89,7 +89,7 @@ final class DatabaseQueueTest extends TestCase
 
         self::assertSame(
             '2026-10-28 10:00:00',
-            $this->statements()[0]['params'][4]
+            $this->statements()[0]['params'][4],
         );
     }
 
@@ -116,7 +116,7 @@ final class DatabaseQueueTest extends TestCase
         self::assertSame(
             ['BEGIN', self::SELECT_SQL, self::RESERVE_SQL, 'COMMIT'],
             array_column($this->recorder->executions, 'sql'),
-            'reservation happens in one transaction'
+            'reservation happens in one transaction',
         );
         self::assertSame(['emails', '2026-10-28 10:00:00'], $this->recorder->executions[1]['params']);
         self::assertSame(['2026-10-28 10:00:00', 'job-1'], $this->recorder->executions[2]['params']);
@@ -128,7 +128,7 @@ final class DatabaseQueueTest extends TestCase
 
         self::assertSame(
             ['BEGIN', self::SELECT_SQL, 'COMMIT'],
-            array_column($this->recorder->executions, 'sql')
+            array_column($this->recorder->executions, 'sql'),
         );
     }
 
@@ -147,7 +147,7 @@ final class DatabaseQueueTest extends TestCase
 
         self::assertSame(
             [['sql' => 'DELETE FROM `jobs` WHERE `id` = ?', 'params' => ['job-1']]],
-            $this->statements()
+            $this->statements(),
         );
     }
 
@@ -160,7 +160,7 @@ final class DatabaseQueueTest extends TestCase
                 'sql' => 'UPDATE `jobs` SET `reserved_at` = NULL, `available_at` = ? WHERE `id` = ?',
                 'params' => ['2026-10-28 10:00:15', 'job-1'],
             ],
-            $this->statements()[0]
+            $this->statements()[0],
         );
     }
 
@@ -177,7 +177,7 @@ final class DatabaseQueueTest extends TestCase
 
         self::assertSame(
             'SELECT `id` FROM `jobs` WHERE `queue` = ? AND `reserved_at` IS NULL AND `available_at` <= ? LIMIT 1',
-            $this->statements()[0]['sql']
+            $this->statements()[0]['sql'],
         );
         self::assertSame(['emails', '2026-10-28 10:00:00'], $this->statements()[0]['params']);
     }

@@ -58,7 +58,7 @@ final class ThemeInstaller
                     'Cannot add theme imports to [%s] because the file does not exist. '
                     .'Run `bin/sahil ui:install %s` first.',
                     $entry,
-                    $profile->value
+                    $profile->value,
                 ));
             }
         }

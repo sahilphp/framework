@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Sahil\Cache;
 
 use Sahil\Contracts\Cache\CacheContract;
-use InvalidArgumentException;
 
 /**
  * File-based cache driver with expiration support.
@@ -16,6 +15,9 @@ use InvalidArgumentException;
  *
  * In production, consider using Redis, Memcached, or another
  * distributed cache for better performance and concurrency.
+ */
+/**
+ * @implements CacheContract<mixed>
  */
 final class FileCache implements CacheContract
 {
@@ -161,7 +163,7 @@ final class FileCache implements CacheContract
     }
 
     /** {@inheritDoc} */
-    public function ttL(string $key): mixed
+    public function ttL(string $key): int|false
     {
         $file = $this->cacheFile($key);
 

@@ -53,7 +53,7 @@ final class AuthorizeMiddlewareTest extends TestCase
         $response = $middleware->handle(
             Request::fromGlobals(server: ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/posts']),
             static fn (Request $r): Response => Response::text('published'),
-            'publish-post'
+            'publish-post',
         );
 
         $this->assertSame(401, $response->status());
@@ -76,7 +76,7 @@ final class AuthorizeMiddlewareTest extends TestCase
 
                 return Response::text('published');
             },
-            'publish-post'
+            'publish-post',
         );
 
         $this->assertFalse($handlerRan, 'a denied request must never reach the handler');
@@ -92,7 +92,7 @@ final class AuthorizeMiddlewareTest extends TestCase
         $response = $middleware->handle(
             Request::fromGlobals(server: ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/posts']),
             static fn (Request $r): Response => Response::text('published'),
-            'never-defined'
+            'never-defined',
         );
 
         $this->assertSame(403, $response->status());
@@ -109,7 +109,7 @@ final class AuthorizeMiddlewareTest extends TestCase
         $response = $middleware->handle(
             Request::fromGlobals(server: ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/posts']),
             static fn (Request $r): Response => Response::text('published'),
-            'publish-post'
+            'publish-post',
         );
 
         $this->assertSame(200, $response->status());
@@ -127,7 +127,7 @@ final class AuthorizeMiddlewareTest extends TestCase
         $response = $middleware->handle(
             Request::fromGlobals(server: ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/posts']),
             static fn (Request $r): Response => Response::text('published'),
-            'publish-post'
+            'publish-post',
         );
 
         $this->assertSame(200, $response->status());
@@ -142,7 +142,7 @@ final class AuthorizeMiddlewareTest extends TestCase
         $provider = new RecordingUserProvider();
         $provider->add(new AuthUser(
             ['id' => 7, 'email' => 'alice@example.test', 'password' => Password::hash('secret')],
-            permissions: $permissions
+            permissions: $permissions,
         ));
 
         $session = new Session(new FileSessionDriver($this->sessionPath));

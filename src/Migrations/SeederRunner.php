@@ -91,7 +91,7 @@ final class SeederRunner
             throw new MigrationException(
                 sprintf('Seeder [%s] failed: %s (transaction rolled back)', $name, $failure->getMessage()),
                 0,
-                $failure
+                $failure,
             );
         } finally {
             unset($this->running[$name]);
@@ -109,7 +109,7 @@ final class SeederRunner
             $this->schema,
             function (string $seeder): void {
                 $this->runOne($seeder);
-            }
+            },
         );
     }
 }

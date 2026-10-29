@@ -82,7 +82,7 @@ final class Relation
                 $ownerKey ?? 'id',
                 null,
                 null,
-                null
+                null,
             ),
             'hasOne', 'hasMany' => new self(
                 $type,
@@ -92,7 +92,7 @@ final class Relation
                 $ownerKey ?? 'id',
                 null,
                 null,
-                null
+                null,
             ),
             'belongsToMany' => new self(
                 $type,
@@ -102,7 +102,7 @@ final class Relation
                 null,
                 $pivotTable ?? self::standardPivot($parentClass, $relatedClass),
                 $pivotSelfKey ?? self::snake(self::basename($parentClass)).'_id',
-                $pivotRelatedKey ?? self::snake(self::basename($relatedClass)).'_id'
+                $pivotRelatedKey ?? self::snake(self::basename($relatedClass)).'_id',
             ),
             default => throw new RuntimeException("Unknown relation type [$type]."),
         };

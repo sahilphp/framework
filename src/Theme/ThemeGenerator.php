@@ -273,7 +273,7 @@ final class ThemeGenerator
                 $lines[] = sprintf(
                     '  --bs-border-radius%s: var(--sahil-radius-%s);',
                     $suffix,
-                    $size
+                    $size,
                 );
             }
         }
@@ -376,7 +376,7 @@ final class ThemeGenerator
                 $lines[] = sprintf(
                     '  %s: %s,',
                     $name,
-                    $tokens->breakpoints[$name] ?? $default
+                    $tokens->breakpoints[$name] ?? $default,
                 );
             }
 

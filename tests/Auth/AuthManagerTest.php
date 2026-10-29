@@ -96,7 +96,7 @@ final class AuthManagerTest extends TestCase
         for ($attempt = 1; $attempt <= 5; $attempt++) {
             $this->assertFalse(
                 $auth->attempt(['email' => 'alice@example.test', 'password' => 'wrong']),
-                "failure #{$attempt} must be rejected"
+                "failure #{$attempt} must be rejected",
             );
         }
 

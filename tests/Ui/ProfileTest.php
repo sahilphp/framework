@@ -101,7 +101,7 @@ final class ProfileTest extends TestCase
         self::assertSame(['public/build/assets/tailwind.css'], Profile::Tailwind->expectedAssets());
         self::assertSame(
             ['public/build/assets/bootstrap.css', 'public/build/assets/bootstrap.js'],
-            Profile::Bootstrap->expectedAssets()
+            Profile::Bootstrap->expectedAssets(),
         );
         self::assertSame(
             [
@@ -109,7 +109,7 @@ final class ProfileTest extends TestCase
                 'public/build/assets/bootstrap.css',
                 'public/build/assets/bootstrap.js',
             ],
-            Profile::Both->expectedAssets()
+            Profile::Both->expectedAssets(),
         );
         self::assertSame(['public/build/assets/app.css'], Profile::None->expectedAssets());
     }
@@ -119,7 +119,7 @@ final class ProfileTest extends TestCase
         foreach (Profile::cases() as $profile) {
             self::assertSame(
                 array_values(array_unique($profile->requiredPackages())),
-                $profile->requiredPackages()
+                $profile->requiredPackages(),
             );
         }
     }

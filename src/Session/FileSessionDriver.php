@@ -81,7 +81,7 @@ final class FileSessionDriver implements SessionDriverContract
 
         if ($handle === false) {
             throw new RuntimeException(
-                sprintf('Failed to open session file for writing: %s', $file)
+                sprintf('Failed to open session file for writing: %s', $file),
             );
         }
 
@@ -89,7 +89,7 @@ final class FileSessionDriver implements SessionDriverContract
             fclose($handle);
 
             throw new RuntimeException(
-                sprintf('Failed to acquire exclusive lock on session file: %s', $file)
+                sprintf('Failed to acquire exclusive lock on session file: %s', $file),
             );
         }
 
@@ -101,7 +101,7 @@ final class FileSessionDriver implements SessionDriverContract
 
             if (fwrite($handle, $serialized) === false) {
                 throw new RuntimeException(
-                    sprintf('Failed to write session data to file: %s', $file)
+                    sprintf('Failed to write session data to file: %s', $file),
                 );
             }
 
@@ -167,7 +167,7 @@ final class FileSessionDriver implements SessionDriverContract
     {
         if (!$this->isValidId($id)) {
             throw new RuntimeException(
-                sprintf('Invalid session ID format: %s', $id)
+                sprintf('Invalid session ID format: %s', $id),
             );
         }
     }
@@ -188,7 +188,7 @@ final class FileSessionDriver implements SessionDriverContract
             throw new RuntimeException(
                 sprintf('Session data serialization failed: %s', $e->getMessage()),
                 0,
-                $e
+                $e,
             );
         }
     }
@@ -216,14 +216,14 @@ final class FileSessionDriver implements SessionDriverContract
         if (!is_dir($this->path)) {
             if (!@mkdir($this->path, 0o700, true)) {
                 throw new RuntimeException(
-                    sprintf('Failed to create session directory: %s', $this->path)
+                    sprintf('Failed to create session directory: %s', $this->path),
                 );
             }
         }
 
         if (!is_writable($this->path)) {
             throw new RuntimeException(
-                sprintf('Session directory is not writable: %s', $this->path)
+                sprintf('Session directory is not writable: %s', $this->path),
             );
         }
     }

@@ -46,7 +46,7 @@ final class ModelQuery
 
         if ($connection === null) {
             throw new InvalidArgumentException(
-                "Model [$this->modelClass] has no connection; call its useConnection() once."
+                "Model [$this->modelClass] has no connection; call its useConnection() once.",
             );
         }
 
@@ -116,7 +116,7 @@ final class ModelQuery
         foreach ($relationPaths as $path) {
             if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$/', $path) !== 1) {
                 throw new InvalidArgumentException(
-                    sprintf('Relation path [%s] must be `name` or dotted `name.child`.', $path)
+                    sprintf('Relation path [%s] must be `name` or dotted `name.child`.', $path),
                 );
             }
         }
@@ -137,7 +137,7 @@ final class ModelQuery
 
         if (!method_exists($this->modelClass, $scopeMethod)) {
             throw new InvalidArgumentException(
-                sprintf('No scope [%s] on [%s] (expected a %s() method).', $method, $this->modelClass, $scopeMethod)
+                sprintf('No scope [%s] on [%s] (expected a %s() method).', $method, $this->modelClass, $scopeMethod),
             );
         }
 

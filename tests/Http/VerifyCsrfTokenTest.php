@@ -25,7 +25,7 @@ final class VerifyCsrfTokenTest extends TestCase
         $middleware = new VerifyCsrfToken($this->session);
 
         $request = Request::fromGlobals(
-            server: ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/test']
+            server: ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/test'],
         );
 
         $response = $middleware->handle($request, static fn (Request $r): Response => Response::text('ok'));
@@ -39,7 +39,7 @@ final class VerifyCsrfTokenTest extends TestCase
         $middleware = new VerifyCsrfToken($this->session);
 
         $request = Request::fromGlobals(
-            server: ['REQUEST_METHOD' => 'HEAD', 'REQUEST_URI' => '/test']
+            server: ['REQUEST_METHOD' => 'HEAD', 'REQUEST_URI' => '/test'],
         );
 
         $response = $middleware->handle($request, static fn (Request $r): Response => Response::text('ok'));
@@ -52,7 +52,7 @@ final class VerifyCsrfTokenTest extends TestCase
         $middleware = new VerifyCsrfToken($this->session);
 
         $request = Request::fromGlobals(
-            server: ['REQUEST_METHOD' => 'OPTIONS', 'REQUEST_URI' => '/test']
+            server: ['REQUEST_METHOD' => 'OPTIONS', 'REQUEST_URI' => '/test'],
         );
 
         $response = $middleware->handle($request, static fn (Request $r): Response => Response::text('ok'));
@@ -68,7 +68,7 @@ final class VerifyCsrfTokenTest extends TestCase
 
         $request = Request::fromGlobals(
             server: ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/test'],
-            form: ['_token' => 'invalid']
+            form: ['_token' => 'invalid'],
         );
 
         $this->expectException(BadRequestHttpException::class);
@@ -85,7 +85,7 @@ final class VerifyCsrfTokenTest extends TestCase
 
         $request = Request::fromGlobals(
             server: ['REQUEST_METHOD' => 'PUT', 'REQUEST_URI' => '/test'],
-            form: ['_token' => 'invalid']
+            form: ['_token' => 'invalid'],
         );
 
         $this->expectException(BadRequestHttpException::class);
@@ -101,7 +101,7 @@ final class VerifyCsrfTokenTest extends TestCase
 
         $request = Request::fromGlobals(
             server: ['REQUEST_METHOD' => 'PATCH', 'REQUEST_URI' => '/test'],
-            form: ['_token' => 'invalid']
+            form: ['_token' => 'invalid'],
         );
 
         $this->expectException(BadRequestHttpException::class);
@@ -117,7 +117,7 @@ final class VerifyCsrfTokenTest extends TestCase
 
         $request = Request::fromGlobals(
             server: ['REQUEST_METHOD' => 'DELETE', 'REQUEST_URI' => '/test'],
-            form: ['_token' => 'invalid']
+            form: ['_token' => 'invalid'],
         );
 
         $this->expectException(BadRequestHttpException::class);
@@ -139,7 +139,7 @@ final class VerifyCsrfTokenTest extends TestCase
 
         $request = Request::fromGlobals(
             server: ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/test'],
-            form: ['_token' => 'valid-token']
+            form: ['_token' => 'valid-token'],
         );
 
         $response = $middleware->handle($request, static fn (Request $r): Response => Response::text('ok'));
@@ -165,7 +165,7 @@ final class VerifyCsrfTokenTest extends TestCase
                 'REQUEST_URI' => '/test',
                 'CONTENT_TYPE' => 'application/json',
             ],
-            body: '{"_token":"valid-token"}'
+            body: '{"_token":"valid-token"}',
         );
 
         $response = $middleware->handle($request, static fn (Request $r): Response => Response::text('ok'));
@@ -190,7 +190,7 @@ final class VerifyCsrfTokenTest extends TestCase
                 'REQUEST_METHOD' => 'POST',
                 'REQUEST_URI' => '/test',
                 'HTTP_X_CSRF_TOKEN' => 'valid-token',
-            ]
+            ],
         );
 
         $response = $middleware->handle($request, static fn (Request $r): Response => Response::text('ok'));
@@ -215,7 +215,7 @@ final class VerifyCsrfTokenTest extends TestCase
                 'REQUEST_METHOD' => 'POST',
                 'REQUEST_URI' => '/test',
                 'HTTP_X_XSRF_TOKEN' => 'valid-token',
-            ]
+            ],
         );
 
         $response = $middleware->handle($request, static fn (Request $r): Response => Response::text('ok'));
@@ -238,7 +238,7 @@ final class VerifyCsrfTokenTest extends TestCase
                 'REQUEST_URI' => '/test',
                 'HTTP_X_CSRF_TOKEN' => 'header-token',
             ],
-            form: ['_token' => 'post-token']
+            form: ['_token' => 'post-token'],
         );
 
         $response = $middleware->handle($request, static fn (Request $r): Response => Response::text('ok'));
@@ -251,7 +251,7 @@ final class VerifyCsrfTokenTest extends TestCase
         $middleware = new VerifyCsrfToken($this->session, except: ['/api/webhook']);
 
         $request = Request::fromGlobals(
-            server: ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/api/webhook']
+            server: ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/api/webhook'],
         );
 
         $response = $middleware->handle($request, static fn (Request $r): Response => Response::text('ok'));
@@ -266,7 +266,7 @@ final class VerifyCsrfTokenTest extends TestCase
         $middleware = new VerifyCsrfToken($this->session, except: ['/api/webhook']);
 
         $request = Request::fromGlobals(
-            server: ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/api/other']
+            server: ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/api/other'],
         );
 
         $this->expectException(BadRequestHttpException::class);
@@ -280,7 +280,7 @@ final class VerifyCsrfTokenTest extends TestCase
 
         foreach (['/api/webhook', '/stripe/callback'] as $path) {
             $request = Request::fromGlobals(
-                server: ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => $path]
+                server: ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => $path],
             );
 
             $response = $middleware->handle($request, static fn (Request $r): Response => Response::text('ok'));
@@ -302,7 +302,7 @@ final class VerifyCsrfTokenTest extends TestCase
 
         $request = Request::fromGlobals(
             server: ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/test'],
-            form: ['_token' => 'valid-token']
+            form: ['_token' => 'valid-token'],
         );
 
         $middleware->handle($request, static fn (Request $r): Response => Response::text('ok'));
@@ -321,7 +321,7 @@ final class VerifyCsrfTokenTest extends TestCase
 
         $request = Request::fromGlobals(
             server: ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/test'],
-            form: ['_token' => 'invalid']
+            form: ['_token' => 'invalid'],
         );
 
         try {
@@ -339,7 +339,7 @@ final class VerifyCsrfTokenTest extends TestCase
         $middleware = new VerifyCsrfToken($this->session);
 
         $request = Request::fromGlobals(
-            server: ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/test']
+            server: ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/test'],
         );
 
         $middleware->handle($request, static fn (Request $r): Response => Response::text('ok'));
@@ -352,7 +352,7 @@ final class VerifyCsrfTokenTest extends TestCase
         $middleware = new VerifyCsrfToken($this->session);
 
         $request = Request::fromGlobals(
-            server: ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/test']
+            server: ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/test'],
         );
 
         $this->expectException(BadRequestHttpException::class);

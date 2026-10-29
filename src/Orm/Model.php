@@ -552,7 +552,7 @@ abstract class Model
             null,
             $pivotTable,
             $pivotSelfKey,
-            $pivotRelatedKey
+            $pivotRelatedKey,
         );
     }
 

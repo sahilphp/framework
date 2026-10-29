@@ -77,7 +77,7 @@ final class MigrationRepository
             $this->quote('applied_at'),
             $this->quote($this->table),
             $this->quote('batch'),
-            $this->quote('migration')
+            $this->quote('migration'),
         ))->rows();
 
         $applied = [];
@@ -170,9 +170,9 @@ final class MigrationRepository
                 $this->quote($this->table),
                 $this->quote('migration'),
                 $this->quote('batch'),
-                $this->quote('applied_at')
+                $this->quote('applied_at'),
             ),
-            [$name, $batch, date('Y-m-d H:i:s')]
+            [$name, $batch, date('Y-m-d H:i:s')],
         );
     }
 
@@ -182,9 +182,9 @@ final class MigrationRepository
             sprintf(
                 'DELETE FROM %s WHERE %s = ?',
                 $this->quote($this->table),
-                $this->quote('migration')
+                $this->quote('migration'),
             ),
-            [$name]
+            [$name],
         );
     }
 

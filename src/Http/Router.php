@@ -38,7 +38,7 @@ final class Router
             if ($route->routeName() !== null) {
                 if (array_key_exists($route->routeName(), $this->named)) {
                     throw new InvalidArgumentException(
-                        sprintf('Duplication: route name [%s] already registered.', $route->routeName())
+                        sprintf('Duplication: route name [%s] already registered.', $route->routeName()),
                     );
                 }
 
@@ -72,7 +72,7 @@ final class Router
     {
         if ($prefix !== '' && (str_starts_with($prefix, '/')) === false) {
             throw new InvalidArgumentException(
-                sprintf('HTTP: group prefix must start with a slash, got [%s].', $prefix)
+                sprintf('HTTP: group prefix must start with a slash, got [%s].', $prefix),
             );
         }
 
@@ -102,7 +102,7 @@ final class Router
     {
         if ($route->path() === '/') {
             throw new InvalidArgumentException(
-                sprintf('HTTP: group [%s] cannot rebase the bare root path; use nested route paths instead.', $prefix)
+                sprintf('HTTP: group [%s] cannot rebase the bare root path; use nested route paths instead.', $prefix),
             );
         }
 
@@ -138,7 +138,7 @@ final class Router
         if ($allowedFor !== []) {
             throw new MethodNotAllowedHttpException(
                 array_values(array_unique($allowedFor)),
-                sprintf('Endpoint [%s] does not accept [%s] requests.', $request->path(), $method)
+                sprintf('Endpoint [%s] does not accept [%s] requests.', $request->path(), $method),
             );
         }
 
@@ -187,7 +187,7 @@ final class Router
                 if (!array_key_exists($parameterName, $params)) {
                     if (!$optional) {
                         throw new InvalidArgumentException(
-                            sprintf('Reverse routing [%s] misses a value for the required parameter [%s].', $name, $parameterName)
+                            sprintf('Reverse routing [%s] misses a value for the required parameter [%s].', $name, $parameterName),
                         );
                     }
 
@@ -198,7 +198,7 @@ final class Router
 
                 if ($value === '' || preg_match('#^[^/?\#]+$#', $value) !== 1) {
                     throw new InvalidArgumentException(
-                        sprintf('Reverse routing [%s]: value for [%s] must be a safe path segment.', $name, $parameterName)
+                        sprintf('Reverse routing [%s]: value for [%s] must be a safe path segment.', $name, $parameterName),
                     );
                 }
 
@@ -206,7 +206,7 @@ final class Router
 
                 return $value;
             },
-            $route->path()
+            $route->path(),
         );
 
         if ($generated === null) {
@@ -217,7 +217,7 @@ final class Router
 
         if ($extra !== []) {
             throw new InvalidArgumentException(
-                sprintf('Reverse routing [%s]: unexpected parameters [%s] (omit them).', $name, implode(', ', $extra))
+                sprintf('Reverse routing [%s]: unexpected parameters [%s] (omit them).', $name, implode(', ', $extra)),
             );
         }
 

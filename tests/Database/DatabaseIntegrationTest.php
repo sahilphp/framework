@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Sahil\Tests\Database;
 
-use PDO;
 use PHPUnit\Framework\TestCase;
 use Sahil\Database\ConnectionException;
 use Sahil\Database\ConnectionFactory;
-use Sahil\Database\QueryException;
 
 /**
  * TRUE integration tests: run against configured test databases when
@@ -43,13 +41,18 @@ final class DatabaseIntegrationTest extends TestCase
         return self::providerFrom('SAHIL_DB_TEST_PGSQL');
     }
 
-    /** @return array<string, array{string, array<string, mixed>}> */
+    /**
+     * The provider always yields one case: PHPUnit treats an empty data set as
+     * an error, and an unset variable should skip the test instead.
+     *
+     * @return array<string, array{string, array<string, mixed>}>
+     */
     private static function providerFrom(string $variableName): array
     {
         $url = getenv($variableName);
 
         if ($url === false || trim($url) === '') {
-            return [];
+            return ['not configured' => ['', []]];
         }
 
         return [$variableName => [$url, self::parseUrl($url)]];
@@ -82,7 +85,7 @@ final class DatabaseIntegrationTest extends TestCase
             return (new ConnectionFactory())->make($configuration);
         } catch (ConnectionException $failure) {
             self::markTestSkipped(
-                sprintf('%s: server reachable but %s', $url, $failure->getMessage())
+                sprintf('%s: server reachable but %s', $url, $failure->getMessage()),
             );
             return null;
         }
@@ -138,7 +141,7 @@ final class DatabaseIntegrationTest extends TestCase
 
             self::assertNull(
                 $users->where('name', '=', 'aborted')->first(),
-                'rolled-back inserts must not persist'
+                'rolled-back inserts must not persist',
             );
 
             // Committed writes outside transactions DO persist.
@@ -163,7 +166,7 @@ final class DatabaseIntegrationTest extends TestCase
 
         if ($url === '') {
             self::markTestSkipped(
-                'Set SAHIL_DB_TEST_MYSQL="mysql://user:password@host:port/dbname" to run MySQL integration.'
+                'Set SAHIL_DB_TEST_MYSQL="mysql://user:password@host:port/dbname" to run MySQL integration.',
             );
         }
 
@@ -192,7 +195,7 @@ final class DatabaseIntegrationTest extends TestCase
 
         if ($url === '') {
             self::markTestSkipped(
-                'Set SAHIL_DB_TEST_PGSQL="pgsql://user:password@host:port/dbname" to run PostgreSQL integration.'
+                'Set SAHIL_DB_TEST_PGSQL="pgsql://user:password@host:port/dbname" to run PostgreSQL integration.',
             );
         }
 

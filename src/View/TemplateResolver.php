@@ -40,13 +40,13 @@ final class TemplateResolver
         if ($extension === '' || !str_starts_with($extension, '.')) {
             throw new ViewException(sprintf(
                 'The template extension [%s] must start with a dot (e.g. ".sahil.php").',
-                $extension
+                $extension,
             ));
         }
 
         $this->roots = array_map(
             static fn (string $root): string => rtrim($root, '/'),
-            $roots
+            $roots,
         );
     }
 
@@ -129,7 +129,7 @@ final class TemplateResolver
         if (str_contains($name, '\\')) {
             throw new ViewException(sprintf(
                 'Template name [%s] must use dots or forward slashes, not backslashes.',
-                $name
+                $name,
             ));
         }
 
@@ -142,7 +142,7 @@ final class TemplateResolver
             if ($segment === '' || preg_match('/^[A-Za-z0-9_-]+$/', $segment) !== 1) {
                 throw new ViewException(sprintf(
                     'Template name [%s] is not valid: every segment must match [A-Za-z0-9_-]+ and traversal is not allowed.',
-                    $name
+                    $name,
                 ));
             }
 

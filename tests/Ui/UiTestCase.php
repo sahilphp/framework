@@ -62,7 +62,7 @@ abstract class UiTestCase extends TestCase
 
         $items = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::CHILD_FIRST
+            RecursiveIteratorIterator::CHILD_FIRST,
         );
 
         /** @var SplFileInfo $item */

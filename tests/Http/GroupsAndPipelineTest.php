@@ -169,7 +169,7 @@ final class GroupsAndPipelineTest extends TestCase
         self::assertSame(
             ['outer.handle', 'boomer.handle', 'boomer.finalize', 'outer.finalize'],
             array_slice($trace->events, 0, 4),
-            'reverse-order unwind runs finalize blocks even on failure'
+            'reverse-order unwind runs finalize blocks even on failure',
         );
     }
 
@@ -216,7 +216,7 @@ final class GroupsAndPipelineTest extends TestCase
         self::assertSame(
             'order:77:state',
             $response->body(),
-            'controller constructor came from the container, route params reached the action'
+            'controller constructor came from the container, route params reached the action',
         );
     }
 

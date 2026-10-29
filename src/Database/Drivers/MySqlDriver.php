@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Sahil\Database\Drivers;
 
 use InvalidArgumentException;
-use Sahil\Database\Identifier;
 use Sahil\Database\QuotingDriver;
 use Sahil\Database\Schema\MySqlGrammar;
 use Sahil\Database\Schema\SchemaGrammar;
@@ -40,7 +39,7 @@ final class MySqlDriver extends QuotingDriver
             $endpoint['host'],
             $endpoint['port'],
             $database,
-            preg_match('/^[A-Za-z0-9_+\-.]+$/', $charset) === 1 ? $charset : 'utf8mb4'
+            preg_match('/^[A-Za-z0-9_+\-.]+$/', $charset) === 1 ? $charset : 'utf8mb4',
         );
     }
 

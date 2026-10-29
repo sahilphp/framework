@@ -256,7 +256,7 @@ final class ModelIntegrationTest extends TestCase
 
         $adaPosts = array_values(array_filter(
             $nested->all(),
-            static fn (OrmPost $post): bool => $post->title !== 'Other author'
+            static fn (OrmPost $post): bool => $post->title !== 'Other author',
         ));
         self::assertCount(2, $adaPosts);
 

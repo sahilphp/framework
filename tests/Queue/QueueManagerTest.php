@@ -34,7 +34,7 @@ final class QueueManagerTest extends TestCase
             'user',
             'pass',
             [],
-            static fn (array $_): PDO => $recorder
+            static fn (array $_): PDO => $recorder,
         );
     }
 

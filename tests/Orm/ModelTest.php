@@ -27,7 +27,7 @@ final class ModelTest extends TestCase
             null,
             null,
             [],
-            static fn (array $_): PDO => $recorder
+            static fn (array $_): PDO => $recorder,
         ));
     }
 
@@ -46,7 +46,7 @@ final class ModelTest extends TestCase
             null,
             null,
             [],
-            static fn (array $_): PDO => $recorder
+            static fn (array $_): PDO => $recorder,
         ));
 
         return $recorder;

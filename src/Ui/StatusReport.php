@@ -46,14 +46,14 @@ final class StatusReport
             '  profile:          %s',
             $this->profile === null
                 ? 'unknown'
-                : sprintf('%s (%s%s)', $this->profile->label(), $this->profile->value, $this->profileSource === null ? '' : ', from '.$this->profileSource)
+                : sprintf('%s (%s%s)', $this->profile->label(), $this->profile->value, $this->profileSource === null ? '' : ', from '.$this->profileSource),
         );
 
         $lines[] = sprintf(
             '  node:             %s',
             $this->toolchain->hasNode()
                 ? sprintf('%s (%s)', $this->toolchain->nodeVersion ?? 'version unknown', $this->toolchain->nodePath)
-                : 'not found'
+                : 'not found',
         );
 
         $lines[] = sprintf(
@@ -63,14 +63,14 @@ final class StatusReport
                     '%s %s (%s)',
                     $this->toolchain->packageManager,
                     $this->toolchain->packageManagerVersion ?? 'version unknown',
-                    $this->toolchain->packageManagerPath
+                    $this->toolchain->packageManagerPath,
                 )
-                : 'not found'
+                : 'not found',
         );
 
         $lines[] = sprintf(
             '  lock file:        %s',
-            $this->toolchain->lockFile ?? '(none)'
+            $this->toolchain->lockFile ?? '(none)',
         );
 
         $sourceCount = count($this->sources);
@@ -108,7 +108,7 @@ final class StatusReport
                 in_array($asset, $this->staleAssets, true) ? 'stale' : 'ok',
                 $asset,
                 $this->humanBytes($details['bytes']),
-                $details['modified']
+                $details['modified'],
             );
         }
 

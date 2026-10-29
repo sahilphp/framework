@@ -6,11 +6,11 @@ namespace Sahil\Tests\Examples;
 
 use Sahil\Contracts\Mail\MailerContract;
 use Sahil\Database\Connection;
-use Sahil\Mail\Message;
 use Sahil\Mail\MailStatus;
+use Sahil\Mail\Message;
 use Sahil\Mail\Transports\ArrayTransport;
-use Sahil\Tests\FrameworkTestCase;
 use Sahil\Testing\TestLogger;
+use Sahil\Tests\FrameworkTestCase;
 
 /**
  * Example INTEGRATION test: the fixture provider graph, real services, no
@@ -82,7 +82,7 @@ final class IntegrationExampleTest extends FrameworkTestCase
         /** @var Connection $connection */
         $connection = $this->container()->make(Connection::class);
         $connection->execute(
-            'CREATE TEMPORARY TABLE sahil_example_items (id INT PRIMARY KEY, label VARCHAR(50) NOT NULL)'
+            'CREATE TEMPORARY TABLE sahil_example_items (id INT PRIMARY KEY, label VARCHAR(50) NOT NULL)',
         );
 
         $connection->execute('INSERT INTO sahil_example_items (id, label) VALUES (?, ?)', [1, 'first']);

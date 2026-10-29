@@ -114,7 +114,7 @@ final class LoggingAndExceptionHandlingTest extends TestCase
 
         self::assertSame(
             ['warning', 'error'],
-            array_map(static fn (array $call): string => $call['level'], $logger->events)
+            array_map(static fn (array $call): string => $call['level'], $logger->events),
         );
         self::assertStringContainsString('NotFoundHttpException', $logger->events[0]['message']);
     }
@@ -129,7 +129,7 @@ final class LoggingAndExceptionHandlingTest extends TestCase
 
         $method = $handler->render(
             new MethodNotAllowedHttpException(['GET'], 'nope'),
-            debug: false
+            debug: false,
         );
         self::assertSame(405, $method->status());
         self::assertSame('GET', $method->header('Allow'));
@@ -154,12 +154,12 @@ final class LoggingAndExceptionHandlingTest extends TestCase
         $container = $app->container();
         $container->singleton(
             LoggerContract::class,
-            static fn (\Sahil\Container\Container $c) => new RecordingLogger()
+            static fn (\Sahil\Container\Container $c) => new RecordingLogger(),
         );
         $container->singleton(
             CentralExceptionHandler::class,
             static fn (\Sahil\Container\Container $c): CentralExceptionHandler
-                => new CentralExceptionHandler($c->make(LoggerContract::class))
+                => new CentralExceptionHandler($c->make(LoggerContract::class)),
         );
 
         $handler = $container->make(CentralExceptionHandler::class);

@@ -7,7 +7,6 @@ namespace Sahil\Foundation;
 use RuntimeException;
 use Sahil\Config\Repository;
 use Sahil\Container\Container;
-use Sahil\Contracts\Container\ScopeContract;
 use Sahil\Contracts\Foundation\ApplicationContract;
 use Sahil\Support\Environment;
 use Throwable;
@@ -59,7 +58,7 @@ final class Application implements ApplicationContract
     {
         if (self::$configured !== null) {
             throw new RuntimeException(
-                'An Application is already configured for this process. Use free()/reset() to cycle it.'
+                'An Application is already configured for this process. Use free()/reset() to cycle it.',
             );
         }
 
@@ -167,13 +166,13 @@ final class Application implements ApplicationContract
             } catch (Throwable $throwable) {
                 throw new RuntimeException(
                     sprintf('Config file [%s] failed to load: %s', $file, $throwable->getMessage()),
-                    previous: $throwable
+                    previous: $throwable,
                 );
             }
 
             if (!is_array($tree)) {
                 throw new RuntimeException(
-                    sprintf('Config file [%s] must return an array, got %s.', $file, get_debug_type($tree))
+                    sprintf('Config file [%s] must return an array, got %s.', $file, get_debug_type($tree)),
                 );
             }
 
@@ -214,13 +213,13 @@ final class Application implements ApplicationContract
         } catch (Throwable $throwable) {
             throw new \Sahil\Config\ConfigurationException(
                 sprintf('Environment config [%s] failed to load: %s', $overlayPath, $throwable->getMessage()),
-                previous: $throwable
+                previous: $throwable,
             );
         }
 
         if (!is_array($tree)) {
             throw new \Sahil\Config\ConfigurationException(
-                sprintf('Environment config [%s] must return an array, got %s.', $overlayPath, get_debug_type($tree))
+                sprintf('Environment config [%s] must return an array, got %s.', $overlayPath, get_debug_type($tree)),
             );
         }
 
@@ -253,7 +252,7 @@ final class Application implements ApplicationContract
             } elseif (!in_array($environment, ['development', 'testing', 'staging', 'production'], true)) {
                 $violations[] = sprintf(
                     'app.environment [%s] is not one of: development, testing, staging, production.',
-                    $environment
+                    $environment,
                 );
             }
         }
@@ -279,13 +278,13 @@ final class Application implements ApplicationContract
         if ($logLevel !== null && (!is_string($logLevel) || !in_array($logLevel, \Sahil\Support\Logging\FileLogger::severityList(), true))) {
             $violations[] = sprintf(
                 'app.log_level must be one of: %s.',
-                implode(', ', \Sahil\Support\Logging\FileLogger::severityList())
+                implode(', ', \Sahil\Support\Logging\FileLogger::severityList()),
             );
         }
 
         if ($violations !== []) {
             throw new \Sahil\Config\ConfigurationException(
-                "Configuration validation failed:\n- ".implode("\n- ", $violations)
+                "Configuration validation failed:\n- ".implode("\n- ", $violations),
             );
         }
     }

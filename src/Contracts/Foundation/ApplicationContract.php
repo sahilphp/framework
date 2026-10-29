@@ -7,7 +7,6 @@ namespace Sahil\Contracts\Foundation;
 use Sahil\Config\Repository;
 use Sahil\Container\Container;
 use Sahil\Contracts\Container\ScopeContract;
-use Sahil\Foundation\ServiceProvider;
 use Sahil\Support\Environment;
 
 /**

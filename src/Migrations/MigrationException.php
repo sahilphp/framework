@@ -21,7 +21,7 @@ final class MigrationException extends RuntimeException
         return new self(
             sprintf('Migration [%s] failed: %s', $name, $reason),
             0,
-            $previous
+            $previous,
         );
     }
 
@@ -37,7 +37,7 @@ final class MigrationException extends RuntimeException
     {
         return new self(sprintf(
             'Migration [%s] is recorded as applied but no matching file exists; restore the file (or pass --force to forget the record deliberately).',
-            $name
+            $name,
         ));
     }
 }

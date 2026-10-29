@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Sahil\Container;
 
 use Sahil\Contracts\Container\ScopeContract;
-use Throwable;
 
 /**
  * One lifecycle run (normally: one HTTP request, or one worker daemon
@@ -58,7 +57,7 @@ final class Scope implements ScopeContract
             // a finally block; reaching the destructor means that path
             // was skipped and the container may still hold this scope.
             error_log(
-                sprintf('SahilPHP: scope [%s] was garbage collected without end() being called.', $this->id)
+                sprintf('SahilPHP: scope [%s] was garbage collected without end() being called.', $this->id),
             );
         }
     }

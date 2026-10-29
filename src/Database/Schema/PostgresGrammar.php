@@ -26,7 +26,7 @@ final class PostgresGrammar extends AbstractGrammar
         return sprintf(
             'DROP TABLE %s%s',
             $ifExists ? 'IF EXISTS ' : '',
-            $this->driver->quoteIdentifier($table)
+            $this->driver->quoteIdentifier($table),
         );
     }
 
@@ -97,19 +97,19 @@ final class PostgresGrammar extends AbstractGrammar
                 'ALTER TABLE %s ADD CONSTRAINT %s PRIMARY KEY (%s)',
                 $this->driver->quoteIdentifier($table),
                 $this->driver->quoteIdentifier($this->indexName($table, $index)),
-                $this->quoteList($index->columns())
+                $this->quoteList($index->columns()),
             ),
             IndexDefinition::KIND_UNIQUE => sprintf(
                 'CREATE UNIQUE INDEX %s ON %s (%s)',
                 $this->driver->quoteIdentifier($this->indexName($table, $index)),
                 $this->driver->quoteIdentifier($table),
-                $this->quoteList($index->columns())
+                $this->quoteList($index->columns()),
             ),
             default => sprintf(
                 'CREATE INDEX %s ON %s (%s)',
                 $this->driver->quoteIdentifier($this->indexName($table, $index)),
                 $this->driver->quoteIdentifier($table),
-                $this->quoteList($index->columns())
+                $this->quoteList($index->columns()),
             ),
         };
     }
@@ -124,7 +124,7 @@ final class PostgresGrammar extends AbstractGrammar
         return sprintf(
             'ALTER TABLE %s DROP CONSTRAINT %s',
             $this->driver->quoteIdentifier($table),
-            $this->driver->quoteIdentifier($foreignKey)
+            $this->driver->quoteIdentifier($foreignKey),
         );
     }
 
