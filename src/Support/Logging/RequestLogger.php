@@ -54,11 +54,16 @@ final class RequestLogger
      */
     public function record(string $message, array $context = [], int $status): void
     {
-        $this->logger->log(
-            $this->levelFor($status),
-            $message,
-            $this->structured($context, $status),
-        );
+        $event = $this->structured($context, $status);
+
+        if ($this->logger instanceof StructuredLoggerContract) {
+            $event['message'] = $message;
+            $this->logger->logEvent($event);
+
+            return;
+        }
+
+        $this->logger->log($this->levelFor($status), $message, $event);
     }
 
     public function info(string $message, array $context = []): void

@@ -38,6 +38,11 @@ use Throwable;
  * ```php
  * final class HealthTest extends ApplicationTestCase
  * {
+ *     protected function basePath(): string
+ *     {
+ *         return __DIR__.'/Fixtures/app-root';
+ *     }
+ *
  *     public function test_health_is_ok(): void
  *     {
  *         $this->get('/health')->assertOk()->assertJsonPath('status', 'ok');
@@ -90,11 +95,19 @@ abstract class ApplicationTestCase extends TestCase
     }
 
     /**
-     * Installation root used to boot the test application.
+     * Application root used to boot the test application.
+     *
+     * There is deliberately no package-root fallback: the framework repository
+     * is a library, not a runnable application. Every application test must
+     * override this with an explicit root. Framework-owned tests can extend
+     * {@see \Sahil\Tests\FrameworkTestCase}, which points at the controlled
+     * `tests/Fixtures/app-root` fixture instead of the starter-kit.
      */
     protected function basePath(): string
     {
-        return dirname(__DIR__, 2);
+        throw new TestingException(
+            'ApplicationTestCase requires an explicit application root. Override basePath() in the test case.'
+        );
     }
 
     /**
@@ -401,11 +414,20 @@ abstract class ApplicationTestCase extends TestCase
     /**
      * Add routes on top of the installation's table before the first request.
      *
+     * Minimal test fixtures do not have to bind a router. When none is bound,
+     * this installs a fresh instance so the same router is used by the kernel.
+     *
      * @param callable(Router): void $definition
      */
     protected function withRoutes(callable $definition): static
     {
-        $router = $this->container()->make(Router::class);
+        $container = $this->container();
+
+        if (!$container->bound(Router::class)) {
+            $container->instance(Router::class, new Router());
+        }
+
+        $router = $container->make(Router::class);
         $definition($router);
 
         return $this;
@@ -554,6 +576,14 @@ abstract class ApplicationTestCase extends TestCase
         );
     }
 
+    /**
+     * Console entry point for the application under test.
+     *
+     * The conventional location is `<application-root>/bin/sahil`. Override
+     * this when an application keeps its CLI elsewhere. The framework test
+     * fixture has no CLI, so {@see \Sahil\Tests\FrameworkTestCase} overrides
+     * this with an explicit failure instead of probing a nonexistent binary.
+     */
     protected function consoleBinary(): string
     {
         return $this->basePath().'/bin/sahil';

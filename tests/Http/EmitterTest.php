@@ -50,16 +50,21 @@ final class EmitterTest extends TestCase
     /**
      * The cannot-emit-after-output guard is decisive: run a CGI subprocess
      * that starts output before emitting and expect a fatal rejection.
+     *
+     * The probe needs only the package autoloader: it must not depend on an
+     * application bootstrap, storage directory or front controller, none of
+     * which the framework package ships.
      */
     public function test_emitting_after_output_started_fails_loudly(): void
     {
-        require_once __DIR__.'/../../bootstrap/app.php';
-
         $projectRoot = dirname(__DIR__, 2);
+        $workspace = sys_get_temp_dir().'/sahil-emitter-'.bin2hex(random_bytes(6));
 
-        $script = $projectRoot.'/storage/framework/emit-after-output-'.uniqid('', true).'.php';
+        self::assertTrue(mkdir($workspace, 0o700, true), 'Unable to create the emitter test workspace.');
 
-        self::assertTrue(is_dir(dirname($script)) || mkdir(dirname($script), recursive: true) !== false);
+        $script = $workspace.'/emit-after-output.php';
+        $stdoutFile = $workspace.'/stdout.log';
+        $stderrFile = $workspace.'/stderr.log';
 
         file_put_contents($script, <<<'PHP'
             <?php
@@ -73,8 +78,6 @@ final class EmitterTest extends TestCase
             PHP);
 
         try {
-            $stdoutFile = $script.'.out';
-            $stderrFile = $script.'.err';
             $descriptors = [
                 0 => ['file', '/dev/null', 'r'],
                 1 => ['file', $stdoutFile, 'w'],
@@ -92,16 +95,22 @@ final class EmitterTest extends TestCase
 
             $out = file_get_contents($stdoutFile) ?: '';
             $err = file_get_contents($stderrFile) ?: '';
-            @unlink($stdoutFile);
-            @unlink($stderrFile);
 
             // The framework must have thrown HeadersAlreadySentException
             // (a fatal from CGI), and the "NEVER" marker may not appear
             // afterwards via echo.
-            self::assertStringContainsString('HeadersAlreadySentException', $out.$err);
+            self::assertStringContainsString('HeadersAlreadySentException', $out.$err, sprintf(
+                'php-cgi exited %d without the output-guard rejection.\nSTDOUT:\n%s\nSTDERR:\n%s',
+                $code,
+                $out,
+                $err,
+            ));
             self::assertStringNotContainsString('NEVER', $out);
         } finally {
+            @unlink($stdoutFile);
+            @unlink($stderrFile);
             @unlink($script);
+            @rmdir($workspace);
         }
     }
 }

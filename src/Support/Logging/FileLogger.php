@@ -22,7 +22,7 @@ use Sahil\Support\Redactor;
  * Fail-fast philosophy: an unwritable log sink throws — a broken logging
  * setup must not silently swallow diagnostics.
  */
-final class FileLogger implements LoggerContract
+final class FileLogger implements StructuredLoggerContract
 {
     public const SEVERITY = [
         'debug' => 0,
@@ -69,13 +69,49 @@ final class FileLogger implements LoggerContract
             return;
         }
 
-        $event = [
+        $this->write([
             'timestamp' => gmdate('c'),
             'level' => $level,
             'message' => $message,
             'context' => Redactor::flattenSafely($context),
-        ];
+        ]);
+    }
 
+    /**
+     * Write one complete structured event without adding the generic
+     * level/message/context envelope.
+     *
+     * @param array<string, mixed> $event
+     */
+    public function logEvent(array $event): void
+    {
+        $level = strtolower((string) ($event['level'] ?? 'info'));
+
+        if (self::severity($level) < self::SEVERITY[$this->threshold]) {
+            return;
+        }
+
+        $event['timestamp'] = (string) ($event['timestamp'] ?? gmdate('c'));
+        $event['level'] = $level;
+
+        if (isset($event['context']) && is_array($event['context'])) {
+            $event['context'] = Redactor::flattenSafely($event['context']);
+        }
+
+        foreach (array_keys($event) as $key) {
+            if (Redactor::isSensitive((string) $key)) {
+                $event[$key] = '[redacted]';
+            }
+        }
+
+        $this->write($event);
+    }
+
+    /**
+     * @param array<string, mixed> $event
+     */
+    private function write(array $event): void
+    {
         $line = json_encode($event, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)."\n";
 
         if (@file_put_contents($this->path, $line, FILE_APPEND | LOCK_EX) === false) {

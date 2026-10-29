@@ -11,17 +11,17 @@ use Sahil\Http\Request;
 use Sahil\Http\Response;
 use Sahil\Http\Route;
 use Sahil\Http\Router;
-use Sahil\Testing\ApplicationTestCase;
+use Sahil\Tests\FrameworkTestCase;
 
 /**
  * Example HTTP FEATURE test.
  *
- * Boots the real application graph from bootstrap/providers.php, registers a
- * few illustrative routes, and drives them through the HTTP kernel without a
- * server. Session files and compiled views are redirected to a temporary
- * directory so the test leaves the installation untouched.
+ * Boots the framework fixture graph from bootstrap/providers.php, registers
+ * a few illustrative routes, and drives them through the HTTP kernel without
+ * a server. Session files and compiled views are redirected to a temporary
+ * directory so the test leaves the fixture untouched.
  */
-final class HttpFeatureExampleTest extends ApplicationTestCase
+final class HttpFeatureExampleTest extends FrameworkTestCase
 {
     protected function configurationOverrides(): array
     {

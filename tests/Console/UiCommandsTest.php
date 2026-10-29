@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Sahil\Tests\Console;
 
-use Sahil\Testing\ApplicationTestCase;
+use Sahil\Tests\FrameworkTestCase;
 
-final class UiCommandsTest extends ApplicationTestCase
+final class UiCommandsTest extends FrameworkTestCase
 {
     public function test_help_advertises_the_ui_commands(): void
     {

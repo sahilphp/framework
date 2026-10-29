@@ -4,17 +4,23 @@ declare(strict_types=1);
 
 namespace Sahil\Tests\Console;
 
-use Sahil\Testing\ApplicationTestCase;
+use Sahil\Tests\FrameworkTestCase;
 
 /**
  * Real Vite builds in temporary projects.
  *
- * These tests use the repository's installed node_modules through a symlink,
- * so they require no network access. They are skipped when the frontend
- * dependencies have not been installed (for example in a PHP-only CI job).
+ * These tests use the repository's installed node_modules through a
+ * symlink, so they require no network access. They are skipped when the
+ * frontend dependencies have not been installed (for example in a PHP-only
+ * CI job).
  */
-final class UiBuildIntegrationTest extends ApplicationTestCase
+final class UiBuildIntegrationTest extends FrameworkTestCase
 {
+    private function nodeModulesPath(): string
+    {
+        return dirname(__DIR__, 2).'/node_modules';
+    }
+
     public function test_tailwind_assets_build_in_a_temporary_project(): void
     {
         $project = $this->build('tailwind', ['public/build/assets/tailwind.css']);
@@ -158,7 +164,7 @@ final class UiBuildIntegrationTest extends ApplicationTestCase
             file_put_contents($project.'/views/theme-test.sahil.php', $view);
         }
 
-        if (!symlink($this->basePath().'/node_modules', $project.'/node_modules')) {
+        if (!symlink($this->nodeModulesPath(), $project.'/node_modules')) {
             self::markTestSkipped('Unable to symlink the repository node_modules directory.');
         }
 
@@ -179,7 +185,7 @@ final class UiBuildIntegrationTest extends ApplicationTestCase
     private function requireNodeModules(array $packages): void
     {
         foreach ($packages as $package) {
-            if (!is_file($this->basePath().'/node_modules/'.$package.'/package.json')) {
+            if (!is_file($this->nodeModulesPath().'/'.$package.'/package.json')) {
                 self::markTestSkipped(sprintf(
                     'Frontend dependency [%s] is not installed; run `npm install` to enable build integration tests.',
                     $package

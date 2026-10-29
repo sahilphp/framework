@@ -9,17 +9,17 @@ use Sahil\Database\Connection;
 use Sahil\Mail\Message;
 use Sahil\Mail\MailStatus;
 use Sahil\Mail\Transports\ArrayTransport;
-use Sahil\Testing\ApplicationTestCase;
+use Sahil\Tests\FrameworkTestCase;
 use Sahil\Testing\TestLogger;
 
 /**
- * Example INTEGRATION test: the real provider graph, real services, no
+ * Example INTEGRATION test: the fixture provider graph, real services, no
  * network and no persistent state.
  *
  * Mail uses the `array` transport, logs go to an in-memory replacement, and
  * database writes run inside a transaction that is rolled back afterwards.
  */
-final class IntegrationExampleTest extends ApplicationTestCase
+final class IntegrationExampleTest extends FrameworkTestCase
 {
     protected function configurationOverrides(): array
     {

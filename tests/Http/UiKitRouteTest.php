@@ -4,22 +4,26 @@ declare(strict_types=1);
 
 namespace Sahil\Tests\Http;
 
-use Sahil\Testing\ApplicationTestCase;
+use Sahil\Tests\FrameworkTestCase;
 
 /**
  * The example route proves that profile selection reaches the view layer
  * through the asset service and the controller, without manual URL building.
  */
-final class UiKitRouteTest extends ApplicationTestCase
+final class UiKitRouteTest extends FrameworkTestCase
 {
     /**
      * @return array<string, mixed>
      */
     protected function configurationOverrides(): array
     {
+        $temporary = $this->tempDirectory('sahil-ui-kit');
+
         return [
             'assets.profile' => 'bootstrap',
             'assets.mode' => 'development',
+            'session.path' => $temporary.'/sessions',
+            'view.cache' => $temporary.'/views',
         ];
     }
 

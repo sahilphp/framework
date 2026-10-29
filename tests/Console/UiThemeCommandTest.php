@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Sahil\Tests\Console;
 
-use Sahil\Testing\ApplicationTestCase;
+use Sahil\Tests\FrameworkTestCase;
 
-final class UiThemeCommandTest extends ApplicationTestCase
+final class UiThemeCommandTest extends FrameworkTestCase
 {
     public function test_theme_dry_run_then_install_generates_framework_files(): void
     {

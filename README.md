@@ -8,6 +8,12 @@ routing, configuration & error handling, validation, the database layer &
 query builder, the ORM, migrations & seeding, the template engine, and the
 frontend asset pipeline. See "Roadmap" below for remaining work.
 
+> **Package scope:** This repository is the reusable framework library.
+> Application entry points — `public/index.php`, `bootstrap/app.php`,
+> `bin/sahil`, and the `start` Composer script — are owned by the
+> starter-kit application. This package does not install a CLI binary or a
+> web front controller.
+
 ## Requirements
 
 - PHP 8.2+ (developed and tested on PHP 8.4)
@@ -31,10 +37,10 @@ composer install
 | Directory        | Purpose                                                    |
 |------------------|------------------------------------------------------------|
 | `src/`           | Framework source (`Sahil\` namespace)                      |
-| `app/`           | Application code (`App\` namespace)                        |
-| `public/`        | Public entry points (`index.php` front controller)          |
-| `bin/`           | CLI entry point (`bin/sahil`)                              |
-| `bootstrap/`     | Application bootstrap (`bootstrap/app.php`)                |
+| `app/`           | Application code (`App\` namespace; starter-kit)          |
+| `public/`        | Application HTTP entry point (starter-kit)                 |
+| `bin/`           | Application CLI entry point (`bin/sahil`; starter-kit)     |
+| `bootstrap/`     | Application bootstrap (starter-kit)                        |
 | `config/`        | Configuration (plain arrays keyed by file name)            |
 | `database/`      | Migrations and seeders (`database/migrations`, `database/seeders`) |
 | `routes/`       | Route definitions (registered by `App\Providers\WebRoutesProvider`) |
@@ -44,18 +50,13 @@ composer install
 
 ## Local development
 
+This package is a library. It has no application bootstrap or HTTP server;
+those belong to the starter-kit application. From the application root, the
+starter-kit owns the CLI (`bin/sahil`) and the development server script.
+
+Run the framework quality gates from this package:
+
 ```bash
-# Development server (Ctrl+C to stop)
-composer start
-
-# In another terminal, verify the app boots
-curl -s http://127.0.0.1:8000/health
-# → {"status":"ok","framework":"SahilPHP",...}
-
-# CLI
-php bin/sahil --help
-php bin/sahil --version
-
 # Quality gates
 composer lint      # php -l on every source and test file
 composer test      # PHPUnit

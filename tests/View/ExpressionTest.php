@@ -42,19 +42,19 @@ final class ExpressionTest extends TestCase
     public function test_identifier_lookup(): void
     {
         $php = (new ExpressionCompiler())->compile('$item');
-        self::assertSame('$__ctx->get($item)', $php);
+        self::assertSame('$__ctx->get(\'$item\')', $php);
     }
 
     public function test_dotted_path(): void
     {
         $php = (new ExpressionCompiler())->compile('user.name');
-        self::assertSame('$__ctx->get(user.name)', $php);
+        self::assertSame('$__ctx->get(\'user.name\')', $php);
     }
 
     public function test_path_with_integer_key(): void
     {
         $php = (new ExpressionCompiler())->compile('items.0.name');
-        self::assertSame('$__ctx->get(items.0.name)', $php);
+        self::assertSame('$__ctx->get(\'items.0.name\')', $php);
     }
 
     public function test_function_count(): void

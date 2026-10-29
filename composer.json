@@ -27,8 +27,7 @@
     },
     "autoload": {
         "psr-4": {
-            "Sahil\\": "src/",
-            "App\\": "app/"
+            "Sahil\\": "src/"
         },
         "files": [
             "src/Support/helpers.php"
@@ -49,8 +48,7 @@
             "@lint",
             "@test",
             "@analyse"
-        ],
-        "start": "php -S 127.0.0.1:8000 -t public public/index.php"
+        ]
     },
     "config": {
         "sort-packages": true,

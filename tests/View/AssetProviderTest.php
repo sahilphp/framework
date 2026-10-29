@@ -5,19 +5,22 @@ declare(strict_types=1);
 namespace Sahil\Tests\View;
 
 use Sahil\Contracts\View\ViewContract;
-use Sahil\Testing\ApplicationTestCase;
+use Sahil\Tests\FrameworkTestCase;
 
-final class AssetProviderTest extends ApplicationTestCase
+final class AssetProviderTest extends FrameworkTestCase
 {
     /**
      * @return array<string, mixed>
      */
     protected function configurationOverrides(): array
     {
+        $temporary = $this->tempDirectory('sahil-asset-provider');
+
         return [
             'assets.profile' => 'tailwind',
             'assets.mode' => 'development',
             'assets.dev_server' => 'http://127.0.0.1:5173',
+            'view.cache' => $temporary.'/views',
         ];
     }
 
