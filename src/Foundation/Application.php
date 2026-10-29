@@ -1,14 +1,5 @@
 <?php
 
-// PHP 8.4 minimum version guard
-if (PHP_VERSION_ID < 80400) {
-    fwrite(STDERR, "SahilPHP requires PHP 8.4 or higher. You are running " . PHP_VERSION . ".
-");
-    exit(1);
-}
-
-
-
 declare(strict_types=1);
 
 namespace Sahil\Foundation;
