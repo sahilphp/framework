@@ -79,6 +79,43 @@ final class UiCommandsTest extends FrameworkTestCase
             ->assertOutputContains('--port=5199');
 
         self::assertDirectoryDoesNotExist($project.'/public/build');
+        self::assertFileDoesNotExist($project.'/public/hot');
+    }
+
+    public function test_dev_falls_back_to_a_free_port_and_cleans_up_the_hot_file(): void
+    {
+        $project = $this->tempDirectory('sahil-ui-cli');
+        $bin = $this->tempDirectory('sahil-ui-bin');
+        $this->fakeToolchain($bin);
+
+        $this->runCommand(['ui:install', 'tailwind', '--path='.$project, '--no-install'])
+            ->assertSuccessful();
+
+        mkdir($project.'/node_modules/vite', 0o700, true);
+        file_put_contents($project.'/node_modules/vite/package.json', '{"name":"vite"}');
+
+        $listener = stream_socket_server('tcp://127.0.0.1:0', $errorCode, $errorMessage);
+        self::assertIsResource($listener, (string) $errorMessage);
+
+        $name = (string) stream_socket_get_name($listener, false);
+        $busy = (int) substr($name, strrpos($name, ':') + 1);
+
+        try {
+            $this->runCommand(
+                ['ui:dev', '--path='.$project, '--host=127.0.0.1', '--port='.$busy],
+                ['PATH' => $bin],
+            )
+                ->assertSuccessful()
+                ->assertOutputContains(sprintf('127.0.0.1:%d is already in use', $busy))
+                ->assertOutputContains('using ')
+                ->assertOutputContains('public/hot');
+        } finally {
+            fclose($listener);
+        }
+
+        // The pointer is removed when Vite exits, so templates never follow a
+        // server that is no longer running.
+        self::assertFileDoesNotExist($project.'/public/hot');
     }
 
     public function test_install_reuses_the_recorded_profile_when_none_is_given(): void

@@ -33,6 +33,44 @@ final class AssetManagerTest extends UiTestCase
         self::assertStringNotContainsString('bootstrap', $assets->css('main'));
     }
 
+    public function test_hot_file_points_development_urls_at_the_running_vite_server(): void
+    {
+        $this->write('public/hot', "http://127.0.0.1:5199\n");
+
+        $assets = new AssetManager(
+            basePath: $this->projectPath,
+            profile: 'tailwind',
+            mode: 'development',
+            devServer: 'http://127.0.0.1:5173',
+        );
+
+        self::assertSame(
+            '<script type="module" src="http://127.0.0.1:5199/@vite/client"></script>',
+            $assets->developmentClient(),
+        );
+        self::assertSame(
+            '<link rel="stylesheet" href="http://127.0.0.1:5199/resources/css/tailwind.css">',
+            $assets->css('main'),
+        );
+    }
+
+    public function test_invalid_hot_file_falls_back_to_the_configured_dev_server(): void
+    {
+        $this->write('public/hot', "legacy:junk\n");
+
+        $assets = new AssetManager(
+            basePath: $this->projectPath,
+            profile: 'tailwind',
+            mode: 'development',
+            devServer: 'http://127.0.0.1:5173',
+        );
+
+        self::assertSame(
+            '<script type="module" src="http://127.0.0.1:5173/@vite/client"></script>',
+            $assets->developmentClient(),
+        );
+    }
+
     public function test_bootstrap_development_tags_include_css_and_module_javascript(): void
     {
         $assets = new AssetManager(

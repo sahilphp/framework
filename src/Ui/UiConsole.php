@@ -316,36 +316,126 @@ final class UiConsole
             );
         }
 
-        $command = [...$this->managerCommand($toolchain, $options['dry_run']), 'run', 'dev'];
+        $host = $options['host'] ?? '127.0.0.1';
+        $requestedPort = $options['port'] !== null ? (int) $options['port'] : 5173;
+        $port = $this->availableDevPort($host, $requestedPort);
+        $hotUrl = $this->devServerUrl($host, $port);
 
-        if ($options['host'] !== null || $options['port'] !== null) {
-            $command[] = '--';
-
-            if ($options['host'] !== null) {
-                $command[] = '--host='.$options['host'];
-            }
-
-            if ($options['port'] !== null) {
-                $command[] = '--port='.$options['port'];
-            }
+        if ($port !== $requestedPort) {
+            $this->line(sprintf(
+                'ui:dev: %s:%d is already in use; using %d instead.',
+                $host,
+                $requestedPort,
+                $port,
+            ));
         }
 
-        if (!$options['dry_run']) {
-            $this->ensureDependencies($basePath, $toolchain);
-        }
+        // `--strictPort` keeps Vite on the port selected above, so the URL
+        // written to `public/hot` is always the URL the browser must use.
+        $command = [
+            ...$this->managerCommand($toolchain, $options['dry_run']),
+            'run',
+            'dev',
+            '--',
+            '--host='.$host,
+            '--port='.$port,
+            '--strictPort',
+        ];
 
         if ($options['dry_run']) {
             $this->line('would run: '.$this->describe($command));
+            $this->line('would write public/hot: '.$hotUrl);
 
             return 0;
         }
 
+        $this->ensureDependencies($basePath, $toolchain);
+
+        // Templates follow `public/hot`, so a port that moved still reaches
+        // the running Vite server without a PHP restart or config edit.
+        $hotFile = $basePath.'/public/hot';
+        $this->writeHotFile($basePath, $hotUrl);
+
+        $cleanup = static function () use ($hotFile): void {
+            if (is_file($hotFile)) {
+                @unlink($hotFile);
+            }
+        };
+        register_shutdown_function($cleanup);
+
+        // Ctrl+C stops the whole foreground process group, including this
+        // wrapper, so shutdown functions alone would leave a stale pointer to
+        // a Vite server that is gone.
+        if (extension_loaded('pcntl')) {
+            pcntl_async_signals(true);
+
+            foreach ([SIGINT, SIGTERM] as $signal) {
+                pcntl_signal($signal, static function () use ($cleanup): void {
+                    $cleanup();
+                    exit(0);
+                });
+            }
+        }
+
         $this->line('starting UI development server ('.$profile->label().') with '.$this->describe($command));
+        $this->line('  assets: '.$hotUrl.'  (written to public/hot)');
         $this->line('press Ctrl+C to stop');
 
-        $result = $this->runner()->runInteractive($command, $basePath);
+        try {
+            $result = $this->runner()->runInteractive($command, $basePath);
+        } finally {
+            $cleanup();
+        }
 
         return $result->exitCode === 0 ? 0 : ($result->exitCode > 0 ? $result->exitCode : 1);
+    }
+
+    /**
+     * First free TCP port at or above the requested one, so a busy 5173 does
+     * not stop the frontend toolchain.
+     */
+    private function availableDevPort(string $host, int $port): int
+    {
+        $bindHost = str_contains($host, ':') && !str_starts_with($host, '[') ? '['.$host.']' : $host;
+
+        for ($candidate = $port; $candidate <= min(65535, $port + 100); $candidate++) {
+            $probe = @stream_socket_server('tcp://'.$bindHost.':'.$candidate);
+
+            if ($probe !== false) {
+                fclose($probe);
+
+                return $candidate;
+            }
+        }
+
+        throw new UiException(sprintf(
+            'no free port was found in the next 100 above %d; stop the process using it or pass --port=<another-port>.',
+            $port,
+        ));
+    }
+
+    /**
+     * Browsers cannot open `0.0.0.0`, so wildcard binds advertise loopback.
+     */
+    private function devServerUrl(string $host, int $port): string
+    {
+        $host = in_array($host, ['0.0.0.0', '::', '[::]'], true) ? '127.0.0.1' : $host;
+
+        return 'http://'.$host.':'.$port;
+    }
+
+    private function writeHotFile(string $basePath, string $url): void
+    {
+        $path = $basePath.'/public/hot';
+        $directory = dirname($path);
+
+        if (!is_dir($directory) && !mkdir($directory, 0o775, true) && !is_dir($directory)) {
+            throw new UiException(sprintf('Unable to create directory [%s].', $directory));
+        }
+
+        if (file_put_contents($path, $url."\n") === false) {
+            throw new UiException(sprintf('Unable to write [%s].', $path));
+        }
     }
 
     /**

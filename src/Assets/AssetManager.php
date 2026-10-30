@@ -165,7 +165,7 @@ final class AssetManager implements AssetManagerContract
         }
 
         return '<script'.$this->renderAttributes(
-            ['type' => 'module', 'src' => $this->devServer.'/@vite/client'],
+            ['type' => 'module', 'src' => $this->devServerBase().'/@vite/client'],
             [],
             ['src', 'type'],
         ).'></script>';
@@ -260,7 +260,7 @@ final class AssetManager implements AssetManagerContract
     private function assetUrl(array $asset): string
     {
         if ($this->development) {
-            return $this->devServer.'/'.self::encodePath($asset['source']);
+            return $this->devServerBase().'/'.self::encodePath($asset['source']);
         }
 
         $output = ltrim($asset['output'], '/');
@@ -337,6 +337,35 @@ final class AssetManager implements AssetManagerContract
         }
 
         return (string) $value;
+    }
+
+    /**
+     * Development asset base URL.
+     *
+     * `ui:dev` writes `public/hot` with the Vite server it actually started, so
+     * when 5173 is busy and Vite moves to the next free port the templates
+     * follow it without a PHP restart or a configuration edit. A missing or
+     * malformed file falls back to the configured `assets.dev_server`.
+     */
+    private function devServerBase(): string
+    {
+        $hot = $this->basePath.'/public/hot';
+
+        if (!is_file($hot)) {
+            return $this->devServer;
+        }
+
+        $contents = @file_get_contents($hot);
+
+        if ($contents === false || trim($contents) === '') {
+            return $this->devServer;
+        }
+
+        try {
+            return self::normalizeServer(trim($contents));
+        } catch (AssetException) {
+            return $this->devServer;
+        }
     }
 
     private static function resolveMode(string $mode, string $environment): bool
