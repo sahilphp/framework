@@ -7,6 +7,8 @@ namespace Sahil\Http;
 use Closure;
 use Sahil\Container\Container;
 use Sahil\Contracts\Foundation\ApplicationContract;
+use Sahil\Frontend\FrontendRenderer;
+use Sahil\Frontend\InvalidFrontendConfigurationException;
 use Sahil\Http\Exception\HttpException;
 use Sahil\Http\Middleware\MiddlewareContract;
 use Throwable;
@@ -41,6 +43,7 @@ final class Kernel
         private readonly Router $router,
         private readonly Container $container,
         private readonly ApplicationContract $application,
+        private readonly ?FrontendRenderer $frontend = null,
     ) {
     }
 
@@ -97,13 +100,41 @@ final class Kernel
             }
 
             try {
-                return $this->runPipeline($request);
+                return $this->finalizeFrontend($this->runPipeline($request));
             } catch (HttpException $exception) {
                 return $this->handleRendered($this->renderHttpException($exception), $exception);
             } catch (Throwable $throwable) {
                 return $this->handleRendered($this->renderThrowable($throwable), $throwable);
             }
         });
+    }
+
+    /**
+     * Turn a frontend-tagged response into a complete document.
+     *
+     * Native responses pass through untouched. A frontend response without
+     * a configured renderer is a configuration error, not a silently broken
+     * page, so it fails with an actionable message.
+     */
+    private function finalizeFrontend(Response $response): Response
+    {
+        $target = $response->frontend();
+
+        if ($target === null) {
+            return $response;
+        }
+
+        if ($this->frontend === null) {
+            throw new InvalidFrontendConfigurationException(sprintf(
+                'The response targets the [%s] frontend, but the HTTP kernel has no %s. '
+                .'Register %s and pass it to the Kernel constructor (the JavaScript starter-kits do this in their provider).',
+                $target,
+                FrontendRenderer::class,
+                FrontendRenderer::class,
+            ));
+        }
+
+        return $this->frontend->render($response);
     }
 
     /**

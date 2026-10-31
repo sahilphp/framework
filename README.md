@@ -23,8 +23,9 @@ frontend asset pipeline. See "Roadmap" below for remaining work.
 - Node.js 20.19+ or 22.12+ and a package manager (npm, pnpm, yarn or bun)
   are required **only** for the optional UI asset commands.
 
-**PHP extensions:** one of `pdo_mysql` / `pdo_pgsql` is required for the
-database layer, ORM and migrations. Also supported when present: `mbstring`
+**PHP extensions:** one of `pdo_sqlite` (zero-setup default), `pdo_mysql` /
+`pdo_pgsql` is required for the database layer, ORM and migrations. Also
+supported when present: `mbstring`
 (the validator is mb-aware). `openssl` is required for TLS/SSL SMTP
 (`MAIL_SECURITY=tls` or `ssl`).
 
@@ -604,8 +605,9 @@ Contract highlights:
 ## Database layer (Phase 7)
 
 Driver-based DSL over **PDO**. Supported drivers (each gated by real
-integration tests — see "Database setup"): **MySQL/MariaDB** (`pdo_mysql`)
-and **PostgreSQL** (`pdo_pgsql`). Login credentials never appear in log
+integration tests — see "Database setup"): **SQLite** (`pdo_sqlite`, the
+zero-setup default), **MySQL/MariaDB** (`pdo_mysql`) and **PostgreSQL**
+(`pdo_pgsql`). Login credentials never appear in log
 or error output; query errors carry the SQL text and driver message but
 not the bound values ({@see QueryException::parameters()} exposes them
 only via explicit calls).
@@ -615,6 +617,12 @@ environment variables (documented in `.env.example`); real credentials
 never belong in the file or in source control:
 
 ```bash
+# SQLite: one file, no server. The connection factory creates it
+# (and its directory) on first connect.
+DB_DRIVER=sqlite
+DB_DATABASE=/absolute/path/to/database.sqlite   # or :memory:
+
+# MySQL/PostgreSQL instead:
 DB_DRIVER=mysql          # or pgsql
 DB_HOST=127.0.0.1
 DB_PORT=3306
@@ -1095,7 +1103,7 @@ below is the one the safety gates are designed around.
 
 | Variable | Purpose |
 |----------|---------|
-| `DB_DRIVER` | `mysql` or `pgsql` |
+| `DB_DRIVER` | `sqlite` (default), `mysql` or `pgsql` |
 | `DB_HOST`, `DB_PORT` | server endpoint (`3306` / `5432` defaults) |
 | `DB_DATABASE` | schema name |
 | `DB_USERNAME`, `DB_PASSWORD` | credentials — never committed, never logged |
