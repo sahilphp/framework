@@ -11,6 +11,7 @@ use Sahil\Frontend\FrontendRenderer;
 use Sahil\Frontend\InvalidFrontendConfigurationException;
 use Sahil\Http\Exception\HttpException;
 use Sahil\Http\Middleware\MiddlewareContract;
+use Sahil\Http\Middleware\MiddlewareSpec;
 use Throwable;
 
 /**
@@ -165,6 +166,15 @@ final class Kernel
         foreach ($match->route()->middlewareList() as $spec) {
             if ($spec instanceof MiddlewareContract) {
                 $stack[] = $spec;
+
+                continue;
+            }
+
+            // A spec pairs a middleware class with per-route parameters (the
+            // kernel passes none to handle()); it resolves inside this
+            // request scope, so nothing request-specific is captured earlier.
+            if ($spec instanceof MiddlewareSpec) {
+                $stack[] = $spec->resolve($this->container);
 
                 continue;
             }
