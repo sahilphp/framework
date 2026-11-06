@@ -39,7 +39,7 @@ The package is a library: it declares no binary and no front controller. To
 create a runnable application, install the starter kit instead:
 
 ```bash
-composer create-project sahilphp/starter-kit my-app
+composer create-project sahilphp/sahilphp my-app
 ```
 
 ## Directory layout
@@ -70,7 +70,7 @@ published package.
 
 ### The starter-kit application (separate repository)
 
-`sahilphp/framework` supplies the behaviour; `sahilphp/starter-kit` is the
+`sahilphp/framework` supplies the behaviour; `sahilphp/sahilphp` is the
 application that requires it and owns every runnable path — entry points,
 configuration, routes, templates and storage. The paths below exist in **that**
 repository only and are **not shipped in this package**; they are listed so

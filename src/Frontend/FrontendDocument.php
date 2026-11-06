@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Sahil\Frontend;
 
 use Sahil\View\Escaper;
+use Sahil\Contracts\Session\SessionContract;
 
 /**
  * The HTML document for one frontend page.
@@ -32,6 +33,7 @@ final class FrontendDocument
         private readonly array $attributes,
         private readonly FrontendAssets $assets,
         private readonly string $title,
+    private readonly ?SessionContract $session = null,
     ) {
         if (preg_match('#^[A-Za-z0-9_@/.-]+$#', $this->component) !== 1) {
             throw new InvalidFrontendConfigurationException(sprintf(
@@ -40,6 +42,20 @@ final class FrontendDocument
             ));
         }
     }
+    private function csrfMetaTag(): string
+    {
+        if ($this->session === null) {
+            return '';
+        }
+
+        $token = $this->session->token();
+
+        return sprintf(
+            '<meta name="csrf-token" content="%s">',
+            Escaper::html($token),
+        );
+    }
+
 
     public function html(): string
     {
@@ -80,7 +96,7 @@ final class FrontendDocument
             $attributes .= sprintf(' %s="%s"', Escaper::html($name), Escaper::html((string) $value));
         }
 
-        $head = ['<meta charset="utf-8">', '<meta name="viewport" content="width=device-width, initial-scale=1">'];
+$head = ['<meta charset="utf-8">', '<meta name="viewport" content="width=device-width, initial-scale=1">', $this->csrfMetaTag()];
 
         foreach ($this->assets->styles() as $href) {
             $head[] = sprintf('<link rel="stylesheet" href="%s">', Escaper::html($href));

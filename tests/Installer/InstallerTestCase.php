@@ -47,7 +47,7 @@ abstract class InstallerTestCase extends TestCase
             'bin/sahil' => "#!/usr/bin/env php\n<?php\n",
             'bootstrap/app.php' => "<?php\n",
             'composer.json' => json_encode([
-                'name' => 'sahilphp/starter-kit',
+                'name' => 'sahilphp/sahilphp',
                 'type' => 'project',
             ], JSON_THROW_ON_ERROR),
             'composer.json.backup' => "{}\n",

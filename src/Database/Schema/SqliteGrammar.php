@@ -73,7 +73,7 @@ final class SqliteGrammar extends AbstractGrammar
         return match ($column->type()) {
             'id', 'foreignId', 'bigInteger', 'integer' => 'INTEGER',
             'string' => sprintf('VARCHAR(%d)', $column->lengthValue() ?? 255),
-            'text', 'json' => 'TEXT',
+            'text', 'longText', 'json' => 'TEXT',
             'boolean' => 'BOOLEAN',
             'timestamp', 'dateTime' => 'DATETIME',
             'decimal' => sprintf('DECIMAL(%d, %d)', $column->precisionValue() ?? 10, $column->scaleValue() ?? 2),

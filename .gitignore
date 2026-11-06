@@ -1,5 +1,5 @@
 # Dependencies and local tooling
-/vendor/
+vendor/
 /node_modules/
 /.freebuff/
 
