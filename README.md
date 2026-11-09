@@ -10,11 +10,11 @@ frontend asset pipeline. See "Roadmap" below for remaining work.
 
 > **Package scope:** This repository is the reusable framework library.
 > Application entry points — `public/index.php`, `bootstrap/app.php`,
-> `php sahil`, and the `start` Composer script — are owned by the
-> starter-kit application. This package does not install a CLI binary or a
+> `php sahil`, and the `start` Composer script — are owned by the starter
+> application in `sahilphp/`. This package does not install a CLI binary or a
 > web front controller. Every `php sahil …` example in this document is
-> therefore a command for the starter-kit (or any application) root, not for
-> this package.
+> therefore a command for the `sahilphp/` root (or any application) root, not
+> for this package.
 
 ## Requirements
 
@@ -68,31 +68,33 @@ That is the whole tree at the package root. A `vendor/` directory appears after
 `composer install`; it is generated locally, git-ignored, and not part of the
 published package.
 
-### The starter-kit application (separate repository)
+### The starter application (`sahilphp/`)
 
 `sahilphp/framework` supplies the behaviour; `sahilphp/sahilphp` is the
 application that requires it and owns every runnable path — entry points,
-configuration, routes, templates and storage. The paths below exist in **that**
-repository only and are **not shipped in this package**; they are listed so
-that documentation elsewhere in this README is easy to follow:
+configuration, routes, templates and storage. The `sahilphp/` directory is
+the canonical starter project; there is no separate `starter-kit/` project.
+The paths below exist in **that** repository only and are **not shipped in
+this package**; they are listed so that documentation elsewhere in this
+README is easy to follow:
 
-| Path (starter-kit root) | Purpose |
+| Path (`sahilphp/` root) | Purpose |
 |------|---------|
 | `app/` | Application code, `App\` namespace: `Http/` controllers, `Providers/` |
-| `php sahil` | CLI entry point; dispatches `ui:*` to `Sahil\Ui\UiConsole`, then boots the application |
+| `php sahil` | CLI entry point; dispatches commands through `Sahil\Console\Application`, then boots the application |
 | `bootstrap/app.php`, `bootstrap/providers.php` | Bootstrap entry point (`sahil_bootstrap()`) and provider manifest |
 | `config/` | Configuration arrays, one file per namespace (`config/app.php`, …) |
 | `database/` | `database/migrations/` and `database/seeders/` |
 | `public/` | `public/index.php` HTTP front controller plus served assets (`public/css`, `public/js`, `public/build`) |
 | `routes/` | Route table (`routes/web.php`) and scheduled tasks (`routes/schedule.php`) |
-| `views/` | Layouts, pages and partials with the `.sahil.php` extension |
+| `resources/views/` | Layouts, pages and partials with the `.sahil.php` extension |
 | `storage/` | Runtime storage: logs, compiled views, sessions, cache, uploads |
 | `resources/` | Frontend sources used by the UI profiles |
 | `tests/` | Application test suite, `Tests\` namespace |
 
 Both lists are relative to their own repository root, so the same name can
 mean different things: this package's `tests/` is the `Sahil\Tests\` suite,
-while the starter-kit's `tests/` is the application's `Tests\` suite.
+while the `sahilphp/` application's `tests/` is the `Tests\` suite.
 
 ## Local development
 
@@ -272,19 +274,20 @@ never hand-build development-server or production-build URLs:
 so the framework never loads both CSS frameworks implicitly. Page-specific
 files are added through the `head` and `scripts` sections of the layout.
 
-This package ships no templates: `views/` belongs to the application. The
-starter-kit holds the sample layouts for Tailwind, Bootstrap and plain CSS in
-its `views/layouts/`, and its `/ui-kit` page demonstrates forms, validation
-errors, alerts, a responsive table, shared navigation and responsive grids.
+This package ships no templates: `resources/views/` belongs to the application.
+The `sahilphp/` application holds the sample layouts for Tailwind, Bootstrap
+and plain CSS in `resources/views/layouts/`, and its `/ui-kit` page demonstrates
+forms, validation errors, alerts, a responsive table, shared navigation and
+responsive grids.
 
 See [`src/Assets/`](src/Assets/) for the service interface and the
 `ASSET_PROFILE`, `ASSET_MODE` and `ASSET_URL` configuration keys referenced
-above; the starter-kit's `views/layouts/` provides the sample usage.
+above; `sahilphp/resources/views/layouts/` provides the sample usage.
 
 ## Environment
 
 Configuration and environment files belong to the application: this package
-ships neither `.env` nor `.env.example`. In the starter-kit root, copy its
+ships neither `.env` nor `.env.example`. In the `sahilphp/` root, copy its
 `.env.example` to `.env` and adjust per deployment — `.env` is git-ignored
 there, so never commit real credentials.
 
@@ -461,7 +464,7 @@ installed on the kernel by `App\Providers\ObservabilityProvider`, which
 is distinguishable from HTTP errors at the API level: configuration
 failures occur before requests can dispatch.
 
-**CLI** (the starter-kit's `php sahil`):
+**CLI** (the `sahilphp/` application's `php sahil`):
 - `about` — application facts (name, environment, debug on/off, timezone, PHP),
 - `config:show [namespace]` — secret-safe dotted configuration dump,
 - `env:check` — documented variable names only (values are never

@@ -6,6 +6,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Framework-owned `Sahil\Console` application, built-in project commands,
+  native `unda:*` generators, and the project installer used by the
+  `sahilphp/sahilphp` starter.
+- Asset-manager `kit` JavaScript entry so generated applications can load
+  `resources/js/app.js` as `assets/kit.js`.
+
+### Changed
+
+- `sahilphp/sahilphp`, `sahilphp/installer`, `sahilphp/react`,
+  `sahilphp/vue`, and `sahilphp/svelte` require framework `^1.1`. Publish this
+  framework release before those dependent packages are installed.
+- The starter application lives in the canonical `sahilphp/` project
+  directory; no separate `starter-kit/` project is supported.
+
 ## [1.0.0] - 2026-10-29
 
 First public release.

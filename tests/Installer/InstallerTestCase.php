@@ -11,7 +11,7 @@ use Sahil\Installer\ConsoleIO;
 use SplFileInfo;
 
 /**
- * Temporary starter-kit fixture for installer tests.
+ * Temporary starter application fixture for installer tests.
  */
 abstract class InstallerTestCase extends TestCase
 {
@@ -24,7 +24,7 @@ abstract class InstallerTestCase extends TestCase
         parent::setUp();
 
         $this->workspace = sys_get_temp_dir().'/sahil-installer-'.bin2hex(random_bytes(6));
-        $this->source = $this->workspace.'/starter-kit';
+        $this->source = $this->workspace.'/sahilphp';
 
         self::assertTrue(mkdir($this->source, 0o700, true));
     }
