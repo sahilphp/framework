@@ -145,7 +145,7 @@ final class AssetRenderingTest extends TestCase
             HTML);
 
         $this->expectException(ViewRenderException::class);
-        $this->expectExceptionMessage('bin/sahil ui:build');
+        $this->expectExceptionMessage('php sahil ui:build');
 
         $workspace->engine($assets)->render('page');
     }

@@ -184,7 +184,7 @@ final class ThemeInstallerTest extends UiTestCase
             (new ThemeInstaller())->install($this->projectPath, Profile::Tailwind);
             self::fail('Expected a missing entry error.');
         } catch (ThemeException $error) {
-            self::assertStringContainsString('Run `bin/sahil ui:install tailwind` first', $error->getMessage());
+            self::assertStringContainsString('Run `php sahil ui:install tailwind` first', $error->getMessage());
         }
 
         self::assertFileDoesNotExist($this->projectPath.'/theme/tokens.json');

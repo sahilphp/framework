@@ -90,6 +90,37 @@ final class AssetManagerTest extends UiTestCase
         self::assertStringNotContainsString('tailwind', $assets->css('main'));
     }
 
+    public function test_ui_kit_entry_is_available_for_every_profile(): void
+    {
+        $this->write('public/build/assets/kit.js', 'export{}');
+
+        foreach (['tailwind', 'bootstrap', 'none'] as $profile) {
+            $development = new AssetManager(
+                basePath: $this->projectPath,
+                profile: $profile,
+                mode: 'development',
+            );
+
+            self::assertSame(
+                '<script type="module" src="http://127.0.0.1:5173/resources/js/app.js"></script>',
+                $development->js('kit'),
+                $profile,
+            );
+
+            $production = new AssetManager(
+                basePath: $this->projectPath,
+                profile: $profile,
+                mode: 'production',
+            );
+
+            self::assertSame(
+                '<script type="module" src="/build/assets/kit.js"></script>',
+                $production->js('kit'),
+                $profile,
+            );
+        }
+    }
+
     public function test_production_tailwind_references_the_built_file(): void
     {
         $this->write('public/build/assets/tailwind.css', 'body{}');
@@ -152,7 +183,7 @@ final class AssetManagerTest extends UiTestCase
         );
 
         $this->expectException(AssetException::class);
-        $this->expectExceptionMessage('bin/sahil ui:build');
+        $this->expectExceptionMessage('php sahil ui:build');
 
         $assets->css('main');
     }
@@ -298,7 +329,7 @@ final class AssetManagerTest extends UiTestCase
         );
 
         $this->expectException(AssetException::class);
-        $this->expectExceptionMessage('bin/sahil ui:install');
+        $this->expectExceptionMessage('php sahil ui:install');
 
         $assets->css('main');
     }

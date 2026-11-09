@@ -47,7 +47,7 @@ solely by automated scanners without a demonstrated impact.
 
 - `APP_DEBUG=false` and `APP_ENV=production` in production (validated at
   boot when strict checks are enabled).
-- `APP_KEY` set and unique per installation (`php bin/sahil key:generate`).
+- `APP_KEY` set and unique per installation (`php sahil key:generate`).
 - Point the web server at `public/` only; never at the project root.
 - Serve over HTTPS and enable `secure` session cookies behind TLS.
 - Run `composer audit` in CI and keep dependencies current.

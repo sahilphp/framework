@@ -13,6 +13,13 @@
 /.gitattributes          export-ignore
 /.gitignore              export-ignore
 /phpunit.xml export-ignore
+/.php-cs-fixer.cache     export-ignore
+/.phpstan.cache          export-ignore
+/.phpunit.cache           export-ignore
+/composer.lock            export-ignore
+/dist                     export-ignore
+/node_modules             export-ignore
+/vendor                   export-ignore
 
 
 # Licensing: framework package keeps LICENSE for end users

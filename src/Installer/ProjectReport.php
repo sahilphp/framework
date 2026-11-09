@@ -90,7 +90,7 @@ final class ProjectReport
         $lines[] = '  http://127.0.0.1:8000/health    health check';
         $lines[] = '';
         $lines[] = 'Generate the complete authentication implementation, then open it:';
-        $lines[] = '  php sahil make:auth';
+        $lines[] = '  php sahil unda:auth';
         $lines[] = '  http://127.0.0.1:8000/login';
         $lines[] = '  http://127.0.0.1:8000/register';
         $lines[] = '  http://127.0.0.1:8000/dashboard';

@@ -10,9 +10,9 @@ frontend asset pipeline. See "Roadmap" below for remaining work.
 
 > **Package scope:** This repository is the reusable framework library.
 > Application entry points — `public/index.php`, `bootstrap/app.php`,
-> `bin/sahil`, and the `start` Composer script — are owned by the
+> `php sahil`, and the `start` Composer script — are owned by the
 > starter-kit application. This package does not install a CLI binary or a
-> web front controller. Every `php bin/sahil …` example in this document is
+> web front controller. Every `php sahil …` example in this document is
 > therefore a command for the starter-kit (or any application) root, not for
 > this package.
 
@@ -79,7 +79,7 @@ that documentation elsewhere in this README is easy to follow:
 | Path (starter-kit root) | Purpose |
 |------|---------|
 | `app/` | Application code, `App\` namespace: `Http/` controllers, `Providers/` |
-| `bin/sahil` | CLI entry point; dispatches `ui:*` to `Sahil\Ui\UiConsole`, then boots the application |
+| `php sahil` | CLI entry point; dispatches `ui:*` to `Sahil\Ui\UiConsole`, then boots the application |
 | `bootstrap/app.php`, `bootstrap/providers.php` | Bootstrap entry point (`sahil_bootstrap()`) and provider manifest |
 | `config/` | Configuration arrays, one file per namespace (`config/app.php`, …) |
 | `database/` | `database/migrations/` and `database/seeders/` |
@@ -98,7 +98,7 @@ while the starter-kit's `tests/` is the application's `Tests\` suite.
 
 This package is a library. It has no application bootstrap or HTTP server;
 those belong to the starter-kit application. From the application root, the
-starter-kit owns the CLI (`bin/sahil`) and the development server script.
+starter-kit owns the CLI (`php sahil`) and the development server script.
 
 Run the framework quality gates from this package:
 
@@ -115,15 +115,15 @@ composer fix-style      # PHP-CS-Fixer auto-fix
 ## UI installation & assets
 
 The UI installer and asset pipeline are implemented in this package, but the
-`bin/sahil` executable is **not**: `composer.json` declares no `bin` entry and
+`php sahil` executable is **not**: `composer.json` declares no `bin` entry and
 this repository has no `bin/` directory. The binary belongs to the starter-kit
 application, and the pipeline it calls is `Sahil\Ui\UiConsole`. The `ui:*`
 commands read the project directory directly, so they work before the
 application boots and do not require a database connection.
 
-Every `php bin/sahil ui:*` example below is a command for the **starter-kit
+Every `php sahil ui:*` example below is a command for the **starter-kit
 (or any application) root**, where that wrapper exists. In a project without
-`bin/sahil`, call the console class from your own entry point:
+`php sahil`, call the console class from your own entry point:
 
 ```php
 <?php
@@ -159,16 +159,16 @@ profile and generated file list), and append the required entries to
 ```bash
 # Run from the starter-kit application root.
 # Tailwind CSS v4 (installs npm dependencies as well)
-php bin/sahil ui:install tailwind
+php sahil ui:install tailwind
 
 # Bootstrap 5, files only — install dependencies later
-php bin/sahil ui:install bootstrap --no-install
+php sahil ui:install bootstrap --no-install
 
 # Both frameworks; merge into existing package.json/configuration
-php bin/sahil ui:install both --merge
+php sahil ui:install both --merge
 
 # Plain CSS
-php bin/sahil ui:install none
+php sahil ui:install none
 ```
 
 `ui:install` is idempotent: identical files are left untouched. If a managed
@@ -176,10 +176,10 @@ file already exists with different content, installation **aborts before
 writing anything** and lists the conflicts. Choose explicitly:
 
 ```bash
-php bin/sahil ui:install tailwind --merge      # keep user files; merge package.json + .gitignore
-php bin/sahil ui:install tailwind --overwrite  # replace managed files; originals go to
+php sahil ui:install tailwind --merge      # keep user files; merge package.json + .gitignore
+php sahil ui:install tailwind --overwrite  # replace managed files; originals go to
                                                # storage/framework/ui-backups/<timestamp>-<id>/
-php bin/sahil ui:install tailwind --dry-run    # print the complete plan, write nothing
+php sahil ui:install tailwind --dry-run    # print the complete plan, write nothing
 ```
 
 With `--merge`, existing scripts, dependency pins, metadata and custom
@@ -191,12 +191,12 @@ alias for `--overwrite`.
 ### Development, build and status
 
 ```bash
-php bin/sahil ui:dev                       # Vite dev server
-php bin/sahil ui:dev --host=0.0.0.0 --port=5199
-php bin/sahil ui:build                     # production build
-php bin/sahil ui:build --clean             # remove public/build first
-php bin/sahil ui:status                    # human-readable readiness report
-php bin/sahil ui:status --json             # machine-readable report for CI
+php sahil ui:dev                       # Vite dev server
+php sahil ui:dev --host=0.0.0.0 --port=5199
+php sahil ui:build                     # production build
+php sahil ui:build --clean             # remove public/build first
+php sahil ui:status                    # human-readable readiness report
+php sahil ui:status --json             # machine-readable report for CI
 ```
 
 Build outputs are deterministic because templates reference stable paths:
@@ -218,8 +218,8 @@ error output.
 Commands can target another checkout with `--path=DIR`:
 
 ```bash
-php bin/sahil ui:install both --path=/srv/apps/example
-php bin/sahil ui:build --path=/srv/apps/example
+php sahil ui:install both --path=/srv/apps/example
+php sahil ui:build --path=/srv/apps/example
 ```
 
 External programs are executed as argument vectors through `proc_open()`
@@ -235,10 +235,10 @@ Theme customization is opt-in. `ui:theme` reads a neutral JSON document,
 validates it, and generates framework-specific files for the active profile:
 
 ```bash
-php bin/sahil ui:theme                    # reads theme/tokens.json
-php bin/sahil ui:theme --source=theme/brand.json
-php bin/sahil ui:theme --dry-run
-php bin/sahil ui:theme --json
+php sahil ui:theme                    # reads theme/tokens.json
+php sahil ui:theme --source=theme/brand.json
+php sahil ui:theme --dry-run
+php sahil ui:theme --json
 ```
 
 The first run creates `theme/tokens.json` with a neutral light/dark sample.
@@ -461,7 +461,7 @@ installed on the kernel by `App\Providers\ObservabilityProvider`, which
 is distinguishable from HTTP errors at the API level: configuration
 failures occur before requests can dispatch.
 
-**CLI** (the starter-kit's `bin/sahil`):
+**CLI** (the starter-kit's `php sahil`):
 - `about` — application facts (name, environment, debug on/off, timezone, PHP),
 - `config:show [namespace]` — secret-safe dotted configuration dump,
 - `env:check` — documented variable names only (values are never
@@ -634,7 +634,7 @@ DB_CHARSET=utf8mb4
 
 `App\Providers\DatabaseProvider` binds `ConnectionFactory`, `Connection`,
 `Schema` and the migration/seed services into the container. Every one of
-them is LAZY: nothing connects at boot, so `bin/sahil about` and requests
+them is LAZY: nothing connects at boot, so `php sahil about` and requests
 that never touch the database keep working when the server is down. The
 connection is opened the first time it is actually resolved, and a failure
 surfaces as `ConnectionException` (message never contains the password).
@@ -838,10 +838,10 @@ scopes, relations or misplaced relation names fail loudly
 `Sahil\Database\Schema\*` (the driver-agnostic schema builder).
 
 ```bash
-bin/sahil migrate                    # apply every pending migration
-bin/sahil migrate:status             # applied / pending / missing
-bin/sahil migrate:rollback [--steps=N]
-bin/sahil db:seed [--class=UsersSeeder]
+php sahil migrate                    # apply every pending migration
+php sahil migrate:status             # applied / pending / missing
+php sahil migrate:rollback [--steps=N]
+php sahil db:seed [--class=UsersSeeder]
 ```
 
 Each of `migrate`, `migrate:rollback` and `db:seed` also takes `--force`
@@ -1056,7 +1056,7 @@ below is the one the safety gates are designed around.
    pg_restore --clean --if-exists -d sahil sahil-2026-10-27-120000.dump
    ```
 
-2. **Inspect before you apply.** `bin/sahil migrate:status` lists applied,
+2. **Inspect before you apply.** `php sahil migrate:status` lists applied,
    pending and missing migrations. Read the pending migrations for
    `dropColumn()`/`dropIndex()`/`dropForeign()` and for anything that
    rewrites data.
@@ -1070,7 +1070,7 @@ below is the one the safety gates are designed around.
    instance at boot. One runner does it:
 
    ```bash
-   bin/sahil migrate --force     # required in production
+   php sahil migrate --force     # required in production
    ```
 
    Concurrent attempts are serialized by the advisory lock, but the lock is
@@ -1092,8 +1092,8 @@ below is the one the safety gates are designed around.
 7. **Rollback when you need it:**
 
    ```bash
-   bin/sahil migrate:rollback --force            # newest batch
-   bin/sahil migrate:rollback --steps=2 --force  # newest two batches
+   php sahil migrate:rollback --force            # newest batch
+   php sahil migrate:rollback --steps=2 --force  # newest two batches
    ```
 
    Restore from backup instead when the batch contains forward-only
@@ -1116,7 +1116,7 @@ below is the one the safety gates are designed around.
 Work that should not run inside a request is queued and executed by a
 worker process. The queue is **database-backed**: jobs live in the `jobs`
 table, so they survive a restart and can be inspected with plain SQL. The
-shipped migrations create `jobs` and `failed_jobs` (`bin/sahil migrate`).
+shipped migrations create `jobs` and `failed_jobs` (`php sahil migrate`).
 
 ### Defining and dispatching a job
 
@@ -1156,9 +1156,9 @@ data — no closures or resources. `maxAttempts()` / `retryDelay()` return
 ### Running the worker
 
 ```bash
-bin/sahil queue:work                    # process until interrupted
-bin/sahil queue:work --once             # process at most one job
-bin/sahil queue:work --queue=emails --max=100
+php sahil queue:work                    # process until interrupted
+php sahil queue:work --once             # process at most one job
+php sahil queue:work --queue=emails --max=100
 ```
 
 The worker reserves one job at a time in a short transaction: the oldest
@@ -1181,10 +1181,10 @@ mid-job still consumes an attempt rather than retrying forever.
 ### Failed jobs
 
 ```bash
-bin/sahil queue:failed                 # id, queue, time, reason
-bin/sahil queue:retry <id>             # replay one failed job
-bin/sahil queue:retry --all            # replay every failure on the queue
-bin/sahil queue:flush                  # forget the queue's failures
+php sahil queue:failed                 # id, queue, time, reason
+php sahil queue:retry <id>             # replay one failed job
+php sahil queue:retry --all            # replay every failure on the queue
+php sahil queue:flush                  # forget the queue's failures
 ```
 
 A retried job is pushed back through the normal dispatcher, so it is an
@@ -1455,11 +1455,11 @@ Use `database` whenever more than one machine can run the scheduler.
 ### Commands
 
 ```bash
-bin/sahil schedule:list                          # cadence, timezone, lock, next run
-bin/sahil schedule:list --at="2026-03-08 03:30"  # inspect a specific instant
-bin/sahil schedule:run                           # the cron entry point
-bin/sahil schedule:run --only=prune-exports      # one task (still must be due)
-bin/sahil schedule:run --at="2026-10-28 09:00"   # deterministic evaluation
+php sahil schedule:list                          # cadence, timezone, lock, next run
+php sahil schedule:list --at="2026-03-08 03:30"  # inspect a specific instant
+php sahil schedule:run                           # the cron entry point
+php sahil schedule:run --only=prune-exports      # one task (still must be due)
+php sahil schedule:run --at="2026-10-28 09:00"   # deterministic evaluation
 ```
 
 `--at` is interpreted in the schedule timezone and affects only the
@@ -1470,7 +1470,7 @@ scheduler; it is how tests and operators reproduce a minute exactly.
 Cron (one line, every minute, same user that owns `storage/`):
 
 ```cron
-* * * * * cd /var/www/sahil && /usr/bin/php bin/sahil schedule:run >> /var/log/sahil-schedule.log 2>&1
+* * * * * cd /var/www/sahil && /usr/bin/php sahil schedule:run >> /var/log/sahil-schedule.log 2>&1
 ```
 
 systemd timer (preferred on servers: no minute-alignment drift, structured
@@ -1484,7 +1484,7 @@ Description=SahilPHP task scheduler
 [Service]
 Type=oneshot
 WorkingDirectory=/var/www/sahil
-ExecStart=/usr/bin/php bin/sahil schedule:run
+ExecStart=/usr/bin/php sahil schedule:run
 User=www-data
 ```
 
@@ -1638,7 +1638,7 @@ Synchronous `send()` never touches the queue. Deferred delivery is opt-in:
 ```bash
 MAIL_QUEUE=true            # enables queue() and queued notifications
 MAIL_QUEUE_NAME=emails     # queue the job lands on
-bin/sahil queue:work --queue=emails
+php sahil queue:work --queue=emails
 ```
 
 ```php

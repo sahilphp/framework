@@ -44,7 +44,7 @@ abstract class InstallerTestCase extends TestCase
             '.gitignore' => "/vendor/\n/node_modules/\n",
             '.sahil-ui.json' => json_encode(['profile' => 'both'], JSON_THROW_ON_ERROR),
             'app/Http/HomeController.php' => "<?php\n",
-            'bin/sahil' => "#!/usr/bin/env php\n<?php\n",
+            'sahil' => "#!/usr/bin/env php\n<?php\n",
             'bootstrap/app.php' => "<?php\n",
             'composer.json' => json_encode([
                 'name' => 'sahilphp/sahilphp',
