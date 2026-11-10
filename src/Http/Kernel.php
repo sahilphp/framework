@@ -10,6 +10,7 @@ use Sahil\Contracts\Foundation\ApplicationContract;
 use Sahil\Frontend\FrontendRenderer;
 use Sahil\Frontend\InvalidFrontendConfigurationException;
 use Sahil\Http\Exception\HttpException;
+use Sahil\Http\Exception\UnsupportedMediaTypeHttpException;
 use Sahil\Http\Middleware\MiddlewareContract;
 use Sahil\Http\Middleware\MiddlewareSpec;
 use Throwable;
@@ -24,8 +25,10 @@ use Throwable;
  *     bindings resolve; they are dropped when the scope ends, even on
  *     error paths), and
  *   - every exception is converted to a safe response: `HttpException`s
- *     keep their status/headers; everything else becomes 500 (message
- *     only in debug mode, installation paths never leak).
+ *     keep their status/headers; everything else becomes 500. Browsers get a
+ *     designed HTML error page, machine clients keep the JSON contract (see
+ *     {@see ErrorRenderer}); messages appear only in debug mode and
+ *     installation paths never leak.
  *
  * The kernel stays reentrant: consecutive `handle()` calls in one process
  * (worker simulation) produce fully isolated request lifecycles.
@@ -35,10 +38,12 @@ final class Kernel
     /** @var list<MiddlewareContract> global (outermost-first) middleware */
     private array $globalMiddleware = [];
 
-    /** @var callable(Throwable): ?Response|null */
+    /** @var callable(Throwable, Request): ?Response|null */
     private $exceptionHandler = null;
 
     private bool $debug = false;
+
+    private ?ErrorRenderer $errorRenderer = null;
 
     public function __construct(
         private readonly Router $router,
@@ -69,12 +74,12 @@ final class Kernel
      *
      * Middleware and handler exceptions unwind through the pipeline (in
      * reverse registration order, running every `finally` and finalize
-     * block) and are then handed to this callable. If it returns a
-     * Response, that response is emitted; returning null falls back to the
-     * kernel's built-in safe rendering (HttpException status, otherwise a
-     * debug-aware 500 without leaking internals).
+     * block) and are then handed to this callable with the failing request
+     * (a handler that only needs the throwable can ignore it). If it returns
+     * a Response, that response is emitted; returning null falls back to the
+     * kernel's built-in rendering (see {@see ErrorRenderer}).
      *
-     * @param callable(Throwable): ?Response $handler
+     * @param callable(Throwable, Request): ?Response $handler
      */
     public function usingExceptionHandler(callable $handler): self
     {
@@ -90,24 +95,29 @@ final class Kernel
     public function handle(Request $request): Response
     {
         return $this->application->isolatedRequest(function () use ($request): Response {
-            // Validate content type: reject unsupported types with 415,
-            // allow requests without a content type, and allow JSON/form data.
-            // Compare the media type only: real requests carry parameters
-            // (`multipart/form-data; boundary=…`, `application/json; charset=utf-8`).
-            $contentType = $request->mediaType();
-            if ($contentType !== null && !
-                in_array($contentType, ['application/json', 'application/x-www-form-urlencoded', 'multipart/form-data'], true)
-            ) {
-                return Response::json(['error' => 'unsupported_media_type'], 415)
-                    ->withHeader('Content-Type', 'application/json');
-            }
-
             try {
+                // Reject unsupported content types with 415; requests without a
+                // content type and JSON/form bodies are allowed. Compare the
+                // media type only: real requests carry parameters
+                // (`multipart/form-data; boundary=…`, `application/json; charset=utf-8`).
+                $contentType = $request->mediaType();
+                if ($contentType !== null && !
+                    in_array($contentType, ['application/json', 'application/x-www-form-urlencoded', 'multipart/form-data'], true)
+                ) {
+                    // The long-standing machine-readable 415 payload is kept as
+                    // is; a browser gets the HTML page instead.
+                    if (ErrorRenderer::expectsJson($request)) {
+                        return Response::json(['error' => 'unsupported_media_type'], 415);
+                    }
+
+                    throw new UnsupportedMediaTypeHttpException();
+                }
+
                 return $this->finalizeFrontend($this->runPipeline($request));
             } catch (HttpException $exception) {
-                return $this->handleRendered($this->renderHttpException($exception), $exception);
+                return $this->handleRendered($this->errorRenderer()->respond($exception, $request, $this->debug), $exception, $request);
             } catch (Throwable $throwable) {
-                return $this->handleRendered($this->renderThrowable($throwable), $throwable);
+                return $this->handleRendered($this->errorRenderer()->respond($throwable, $request, $this->debug), $throwable, $request);
             }
         });
     }
@@ -144,13 +154,22 @@ final class Kernel
      * Give the application exception handler (when installed) the chance
      * to replace the built-in rendering; a null return keeps the fallback.
      */
-    private function handleRendered(Response $fallback, Throwable $throwable): Response
+    private function handleRendered(Response $fallback, Throwable $throwable, Request $request): Response
     {
         if ($this->exceptionHandler === null) {
             return $fallback;
         }
 
-        return ($this->exceptionHandler)($throwable) ?? $fallback;
+        return ($this->exceptionHandler)($throwable, $request) ?? $fallback;
+    }
+
+    /**
+     * The renderer is built on first failure only: a booted application that
+     * never throws pays no view/cache setup cost.
+     */
+    private function errorRenderer(): ErrorRenderer
+    {
+        return $this->errorRenderer ??= ErrorRenderer::fromContainer($this->container);
     }
 
     /**
@@ -236,27 +255,5 @@ final class Kernel
         }
 
         return $response;
-    }
-
-    private function renderHttpException(HttpException $exception): Response
-    {
-        $payload = [
-            'error' => 'http_error',
-            'status' => $exception->statusCode(),
-            'message' => $this->debug ? $exception->getMessage() : null,
-        ];
-
-        return Response::json(array_filter($payload, static fn (mixed $v): bool => $v !== null), $exception->statusCode())
-            ->withHeaders($exception->getHeaders());
-    }
-
-    private function renderThrowable(Throwable $throwable): Response
-    {
-        return Response::json($this->debug
-            ? [
-                'error' => 'server_error',
-                'message' => $throwable->getMessage(),
-            ]
-            : ['error' => 'server_error'], 500);
     }
 }

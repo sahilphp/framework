@@ -374,6 +374,7 @@ final class Application
         $this->register(new Commands\NewCommand());
 
         $this->register(new Commands\UiSetupCommand());
+        $this->register(new Commands\ErrorPublishCommand());
 
         foreach (['ui:install', 'ui:dev', 'ui:build', 'ui:status', 'ui:theme'] as $name) {
             $this->register(new Commands\UiCommand($name));

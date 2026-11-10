@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Designed HTML error pages: `Sahil\Http\ErrorRenderer` answers browser
+  requests with a self-contained page for the status (`400`, `401`, `403`,
+  `404`, `405`, `419`, `429`, `500`, `503` and generic `4xx`/`5xx` groups),
+  while JSON clients keep the existing error contract. A template failure
+  degrades to a built-in page instead of a blank or JSON body.
+- `php sahil error:publish` copies the framework error pages into
+  `resources/views/errors/` so an application can customize them (published
+  views win over the framework's copies). Nothing is added to a project
+  until the command runs.
 - `Sahil\Contracts\View\ComponentRendererContract`: templates can render a
   server-driven UI component by name, and a UI package (Firefiber) supplies
   the implementation. `ViewEngine` accepts the renderer as an optional fourth
@@ -22,6 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `unda:job` generator for `Sahil\Queue\Jobs\Job` subclasses.
 - Asset-manager `kit` JavaScript entry so generated applications can load
   `resources/js/app.js` as `assets/kit.js`.
+
+### Changed
+
+- `Kernel::usingExceptionHandler()` handlers now receive the failing request
+  as a second argument (`callable(Throwable, Request): ?Response`); handlers
+  that only need the throwable keep working unchanged.
+- Unsupported media types still answer a machine-readable
+  `{"error":"unsupported_media_type"}` 415, while a browser gets the 415
+  error page.
 
 ### Fixed
 

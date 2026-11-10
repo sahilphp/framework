@@ -162,6 +162,9 @@ final class FrontendResponseTest extends TestCase
         $response = $this->get($this->kernel(null, Response::vue($this->view())));
 
         self::assertSame(500, $response->status());
-        self::assertSame('{"error":"server_error"}', $response->body());
+        self::assertSame('text/html; charset=utf-8', $response->header('Content-Type'));
+        self::assertStringContainsString('500', $response->body());
+        self::assertStringNotContainsString('FrontendRenderer', $response->body());
+        self::assertStringNotContainsString('server_error', $response->body());
     }
 }

@@ -46,9 +46,10 @@ composer create-project sahilphp/sahilphp my-app
 
 This package is a Composer **library** (`"type": "library"`): source under
 `src/` and a test suite under `tests/`. It is not an application skeleton. No
-front controller, CLI binary, configuration, routes, templates or storage
-directory ships with it — the application that requires the package wires
-those itself.
+front controller, CLI binary, configuration, routes or storage directory ships
+with it — the application that requires the package wires those itself. The
+only templates it ships are the built-in error pages, which are rendered by
+the package and only copied into an application when asked for.
 
 ### This package
 
@@ -56,6 +57,7 @@ those itself.
 |------|---------|
 | `src/` | Framework source, autoloaded as `Sahil\` (`autoload.psr-4`) |
 | `src/Support/helpers.php` | Global helper functions, autoloaded through `autoload.files` |
+| `resources/views/errors/` | Built-in error pages, published with `php sahil error:publish` |
 | `tests/` | PHPUnit suite, autoloaded as `Sahil\Tests\` (`autoload-dev`) |
 | `phpunit.xml` | PHPUnit configuration used by `composer test` |
 | `composer.json` | Package manifest: requirements, autoloading, quality-gate scripts |
@@ -457,10 +459,12 @@ never belong inside the repository (see `.env.example` — copy to a local
 **Centralized exception handling**
 (`Sahil\Foundation\CentralExceptionHandler`): one `report()` (logs with
 matching severity: `warning` for HTTP errors, `error` for real faults)
-and one `render()` (`HttpException`s keep status + headers; anything else
-renders `{"error":"server_error"}`; debug messages only when explicitly
-enabled; stack traces and paths never reach clients in any mode). It is
-installed on the kernel by `App\Providers\ObservabilityProvider`, which
+and one `render()` (`Sahil\Http\ErrorRenderer`): browsers get a designed
+HTML error page for the status, machine clients keep
+`{"error":"http_error","status":404}` / `{"error":"server_error"}`,
+`HttpException`s keep status + headers, and debug messages only appear when
+explicitly enabled; stack traces and paths never reach clients in any mode.
+It is installed on the kernel by `App\Providers\ObservabilityProvider`, which
 is distinguishable from HTTP errors at the API level: configuration
 failures occur before requests can dispatch.
 
@@ -551,12 +555,33 @@ through the DI container.
 
 **Exception handling.** Middleware and handler exceptions unwind through
 the pipeline (finalize/`finally` code runs) and reach the kernel:
-`Kernel::usingExceptionHandler(callable(Throwable): ?Response)` gets the
-first chance; returning null (or not installing one) makes the kernel fall
-back to built-in rendering — `HttpException`s keep status/headers
-(message only in debug mode), any other throwable renders a plain
-`{"error":"server_error"}` 500 — in debug mode the exception message is
-added, but paths/stack traces never reach the client.
+`Kernel::usingExceptionHandler(callable(Throwable, Request): ?Response)` gets
+the first chance; returning null (or not installing one) makes the kernel
+fall back to built-in rendering — `HttpException`s keep status/headers and
+any other throwable becomes a 500; in debug mode the message is added, but
+stack traces never reach the client.
+
+**Error pages.** `Sahil\Http\ErrorRenderer` decides the response body from
+the request: a browser gets a designed, self-contained page for the status
+(`400`, `401`, `403`, `404`, `405`, `419`, `429`, `500`, `503`, plus generic
+`4xx`/`5xx` groups), while `Accept: application/json`, a JSON request body or
+`X-Requested-With: XMLHttpRequest` keeps the stable JSON contract. Pages are
+rendered through the template engine, and a template failure — the storage
+directory may be exactly what is broken during a 500 — degrades to a built-in
+page, so an error is never replaced by a blank body or a JSON dump.
+
+The pages ship with the framework, not with your project, so they cannot rot
+in an application that never customizes them. Publish them when you want your
+own copy or design:
+
+```bash
+php sahil error:publish            # resources/views/errors/*.sahil.php
+php sahil error:publish --force    # replace pages you already edited
+```
+
+Application view roots are searched before the framework's, so a published
+`errors/404.sahil.php` (or the shared `errors/layout.sahil.php`) takes over
+without touching the package.
 
 ## Validation & form handling (Phase 6)
 

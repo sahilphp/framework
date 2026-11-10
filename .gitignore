@@ -16,6 +16,9 @@ vendor/
 /.env.*
 !/.env.example
 
+# Test fixture runtime output (compiled views, logs, sessions)
+/tests/Fixtures/app-root/storage/*
+
 # OS/editor noise
 .DS_Store
 /.idea/

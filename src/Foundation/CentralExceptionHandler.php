@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Sahil\Foundation;
 
+use Sahil\Http\ErrorRenderer;
 use Sahil\Http\Exception\HttpException;
+use Sahil\Http\Request;
 use Sahil\Http\Response;
 use Sahil\Support\Logging\LoggerContract;
 use Throwable;
@@ -16,11 +18,11 @@ use Throwable;
  *  1. {@see report()}: log the event with useful (but non-sensitive)
  *     context — class, message, file/line. HTTP errors (404s, ...) are
  *     `warning`s; genuine faults are `error`s.
- *  2. {@see render()} the HTTP response:
- *     - `HttpException` keeps its status and response headers,
- *     - anything else is a safe `{"error":"server_error"}` 500 — in
- *       debug mode (never default) the message/class are added.
- *     Stack traces and file paths never reach the client in either mode.
+ *  2. {@see render()} the HTTP response through {@see ErrorRenderer}: browsers
+ *     get a designed HTML error page, machine clients keep the JSON contract,
+ *     `HttpException`s keep their status and headers, and anything else is a
+ *     500. In debug mode (never default) the message/class are added. Stack
+ *     traces never reach the client.
  *
  * Configuration errors are distinguishable from HTTP errors: they never
  * render — they are boot failures raised as
@@ -28,8 +30,15 @@ use Throwable;
  */
 final class CentralExceptionHandler
 {
-    public function __construct(private readonly LoggerContract $logger)
-    {
+    /**
+     * @param ErrorRenderer|null $errors renderer wired to the application's
+     *        views; without one, responses stay JSON (and built-in HTML when a
+     *        request is passed and the pages cannot be rendered)
+     */
+    public function __construct(
+        private readonly LoggerContract $logger,
+        private readonly ?ErrorRenderer $errors = null,
+    ) {
     }
 
     /**
@@ -50,26 +59,12 @@ final class CentralExceptionHandler
 
     /**
      * Rendering contract for the HTTP kernel.
+     *
+     * With a request, the answer matches what the client expects (HTML page or
+     * JSON); without one, the JSON contract is kept for standalone callers.
      */
-    public function render(Throwable $throwable, bool $debug): Response
+    public function render(Throwable $throwable, bool $debug = false, ?Request $request = null): Response
     {
-        if ($throwable instanceof HttpException) {
-            $debugMessage = $debug ? $throwable->getMessage() : '';
-
-            $payload = $debugMessage === ''
-                ? ['error' => 'http_error', 'status' => $throwable->statusCode()]
-                : ['error' => 'http_error', 'status' => $throwable->statusCode(), 'message' => $debugMessage];
-
-            return Response::json($payload, $throwable->statusCode())
-                ->withHeaders($throwable->getHeaders());
-        }
-
-        return Response::json($debug
-            ? [
-                'error' => 'server_error',
-                'message' => $throwable->getMessage(),
-                'exception' => $throwable::class,
-            ]
-            : ['error' => 'server_error'], 500);
+        return ($this->errors ?? new ErrorRenderer())->respond($throwable, $request, $debug);
     }
 }

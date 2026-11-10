@@ -130,7 +130,12 @@ final class ApiTest extends TestCase
         ['kernel' => $kernel] = $this->prepareKernel();
 
         $request = Request::fromGlobals(
-            ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/login', 'CONTENT_TYPE' => 'application/xml'],
+            [
+                'REQUEST_METHOD' => 'POST',
+                'REQUEST_URI' => '/login',
+                'CONTENT_TYPE' => 'application/xml',
+                'HTTP_ACCEPT' => 'application/json',
+            ],
             [],
             [],
             [],
@@ -456,7 +461,11 @@ final class ApiTest extends TestCase
     {
         ['kernel' => $kernel] = $this->prepareKernel();
 
-        $request = Request::fromGlobals(['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/nope'], []);
+        $request = Request::fromGlobals([
+            'REQUEST_METHOD' => 'GET',
+            'REQUEST_URI' => '/nope',
+            'HTTP_ACCEPT' => 'application/json',
+        ], []);
         $response = $kernel->handle($request);
 
         self::assertSame(404, $response->status());

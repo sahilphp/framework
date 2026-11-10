@@ -40,9 +40,18 @@ final class KernelTest extends TestCase
         return $kernel->using(...array_filter($middleware));
     }
 
-    private static function request(string $path, string $method = 'GET'): Request
+    /**
+     * @param array<string, string> $headers
+     */
+    private static function request(string $path, string $method = 'GET', array $headers = []): Request
     {
-        return Request::fromGlobals(['REQUEST_METHOD' => $method, 'REQUEST_URI' => $path], []);
+        $server = ['REQUEST_METHOD' => $method, 'REQUEST_URI' => $path];
+
+        foreach ($headers as $name => $value) {
+            $server['HTTP_'.str_replace('-', '_', strtoupper($name))] = $value;
+        }
+
+        return Request::fromGlobals($server, []);
     }
 
     public function test_kernel_dispatches_controller_and_returns_response(): void
@@ -145,7 +154,9 @@ final class KernelTest extends TestCase
         $response = $kernel->handle(self::request('/gone'));
 
         self::assertSame(404, $response->status());
-        self::assertStringContainsString('http_error', $response->body());
+        self::assertSame('text/html; charset=utf-8', $response->header('Content-Type'), 'a browser gets an error page');
+        self::assertStringContainsString('404', $response->body());
+        self::assertStringNotContainsString('http_error', $response->body(), 'browsers never receive the JSON contract');
         self::assertStringNotContainsString('Gone away.', $response->body(), 'non-debug: exception messages are suppressed');
     }
 
@@ -160,7 +171,9 @@ final class KernelTest extends TestCase
         $response = $kernel->handle(self::request('/boom'));
 
         self::assertSame(500, $response->status());
-        self::assertSame('{"error":"server_error"}', $response->body());
+        self::assertSame('text/html; charset=utf-8', $response->header('Content-Type'));
+        self::assertStringContainsString('500', $response->body());
+        self::assertStringNotContainsString('database fallen over', $response->body());
     }
 
     public function test_debug_mode_exposes_messages_only_via_explicit_optin(): void
@@ -174,7 +187,7 @@ final class KernelTest extends TestCase
         $response = $kernel->handle(self::request('/boom'));
 
         self::assertSame(500, $response->status());
-        self::assertSame('{"error":"server_error","message":"database fallen over"}', $response->body());
+        self::assertStringContainsString('database fallen over', $response->body(), 'debug mode exposes the message');
     }
 
     public function test_kernel_is_reentrant_for_worker_simulation(): void
