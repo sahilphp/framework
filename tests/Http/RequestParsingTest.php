@@ -208,6 +208,23 @@ final class RequestParsingTest extends TestCase
         self::assertFalse(Request::fromGlobals(self::SOURCE, [])->hasFormBody());
     }
 
+    public function test_media_type_strips_parameters_and_lowercases(): void
+    {
+        self::assertSame(
+            'multipart/form-data',
+            Request::fromGlobals(self::srv(['CONTENT_TYPE' => 'multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxk']), [])->mediaType(),
+        );
+        self::assertSame(
+            'application/json',
+            Request::fromGlobals(self::srv(['CONTENT_TYPE' => 'Application/JSON; charset=utf-8']), [])->mediaType(),
+        );
+        $blank = self::srv([]);
+        unset($blank['CONTENT_TYPE']);
+        self::assertNull(Request::fromGlobals($blank, [])->mediaType());
+        self::assertNull(Request::fromGlobals(self::srv(['CONTENT_TYPE' => '   ']), [])->mediaType());
+        self::assertSame('text/plain', Request::fromGlobals(self::SOURCE, [])->mediaType());
+    }
+
     public function test_body_bytes_are_kept_verbatim(): void
     {
         $request = Request::fromGlobals(self::SOURCE, [], [], [], "\x00raw \xFF bytes");

@@ -11,8 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Framework-owned `Sahil\Console` application, built-in project commands,
   native `unda:*` generators, and the project installer used by the
   `sahilphp/sahilphp` starter.
+- `unda:job` generator for `Sahil\Queue\Jobs\Job` subclasses.
 - Asset-manager `kit` JavaScript entry so generated applications can load
   `resources/js/app.js` as `assets/kit.js`.
+
+### Fixed
+
+- Generator command help no longer prints every option twice.
+- Nested policies (`unda:policy Admin/UserPolicy`) document the matching
+  nested model (`App\Models\Admin\User`).
+- The job example and generated job implement `handle(): mixed`, matching
+  `JobContract`.
 
 ### Changed
 

@@ -86,6 +86,7 @@ final class GeneratorCommandsTest extends TestCase
         self::assertStringContainsString('unda:policy', $out);
         self::assertStringContainsString('unda:provider', $out);
         self::assertStringContainsString('unda:command', $out);
+        self::assertStringContainsString('unda:job', $out);
         self::assertStringContainsString('unda:seeder', $out);
         self::assertStringNotContainsString('bin/sahil', $out);
         self::assertStringNotContainsString('make:controller', $out);
@@ -104,6 +105,11 @@ final class GeneratorCommandsTest extends TestCase
         self::assertStringContainsString('Admin/UserController', $out);
         self::assertStringNotContainsString('bin/sahil', $out);
         self::assertSame('', $err);
+
+        // Each option is documented once; the bare parser spec must not be
+        // printed in addition to its description.
+        self::assertSame(1, substr_count($out, '--force'));
+        self::assertSame(1, substr_count($out, '--path=DIR'));
 
         [$exit, $out] = $this->runConsole(['help', 'unda:model']);
 
@@ -124,7 +130,9 @@ final class GeneratorCommandsTest extends TestCase
 
         self::assertFileExists($file);
         $this->assertLint($file);
-        self::assertStringContainsString('namespace Acme\\Http\\Controllers;', (string) file_get_contents($file));
+        $contents = (string) file_get_contents($file);
+        self::assertStringContainsString('namespace Acme\\Http\\Controllers;', $contents);
+        self::assertStringEndsWith("\n", $contents, 'Generated files end in one newline.');
 
         $controller = new \Acme\Http\Controllers\UserController();
         $request = Request::fromGlobals([
@@ -144,6 +152,32 @@ final class GeneratorCommandsTest extends TestCase
         self::assertStringContainsString('namespace Acme\\Http\\Controllers\\Admin', $out);
         self::assertFileExists($this->root.'/src/Http/Controllers/Admin/UserController.php');
         self::assertTrue(class_exists(\Acme\Http\Controllers\Admin\UserController::class));
+    }
+
+    public function test_the_longest_matching_psr4_prefix_controls_the_destination(): void
+    {
+        file_put_contents(
+            $this->root.'/composer.json',
+            json_encode([
+                'name' => 'acme/application',
+                'autoload' => [
+                    'psr-4' => [
+                        'Acme\\' => 'src/',
+                        'Acme\\Http\\Controllers\\' => 'http/controllers/',
+                    ],
+                ],
+            ], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR),
+        );
+
+        [$exit, $out] = $this->runConsole(['unda:controller', 'Admin/UserController']);
+
+        self::assertSame(0, $exit);
+        self::assertStringContainsString('http/controllers/Admin/UserController.php', $out);
+        self::assertFileExists($this->root.'/http/controllers/Admin/UserController.php');
+        self::assertStringContainsString(
+            'namespace Acme\\Http\\Controllers\\Admin;',
+            (string) file_get_contents($this->root.'/http/controllers/Admin/UserController.php'),
+        );
     }
 
     public function test_model_and_explicit_migration_option_use_the_orm_contract(): void
@@ -200,6 +234,26 @@ final class GeneratorCommandsTest extends TestCase
         self::assertStringContainsString('database/seeders/UserSeeder.php', $seederOut);
         $seeder = require $this->root.'/database/seeders/UserSeeder.php';
         self::assertInstanceOf(Seeder::class, $seeder);
+
+        [$exit, $jobOut] = $this->runConsole(['unda:job', 'ProcessPayment']);
+        self::assertSame(0, $exit);
+        self::assertStringContainsString('src/Jobs/ProcessPayment.php', $jobOut);
+        self::assertStringContainsString('namespace Acme\\Jobs', $jobOut);
+        $job = new \Acme\Jobs\ProcessPayment();
+        self::assertInstanceOf(\Sahil\Queue\Jobs\Job::class, $job);
+        self::assertSame(null, $job->queue());
+    }
+
+    public function test_nested_policy_documents_the_matching_nested_model(): void
+    {
+        [$exit, $out] = $this->runConsole(['unda:policy', 'Admin/UserPolicy']);
+
+        self::assertSame(0, $exit);
+        self::assertStringContainsString('src/Policies/Admin/UserPolicy.php', $out);
+        $contents = (string) file_get_contents($this->root.'/src/Policies/Admin/UserPolicy.php');
+        self::assertStringContainsString('namespace Acme\\Policies\\Admin;', $contents);
+        self::assertStringContainsString('@see \\Acme\\Models\\Admin\\User', $contents);
+        self::assertTrue(class_exists(\Acme\Policies\Admin\UserPolicy::class));
     }
 
     public function test_generated_migrations_run_through_the_real_migrator(): void

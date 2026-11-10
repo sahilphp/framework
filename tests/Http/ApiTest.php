@@ -144,6 +144,60 @@ final class ApiTest extends TestCase
         self::assertSame('unsupported_media_type', json_decode($response->body(), true, 512, JSON_THROW_ON_ERROR)['error']);
     }
 
+    public function test_parameterized_json_content_type_is_accepted(): void
+    {
+        ['kernel' => $kernel] = $this->prepareKernel();
+
+        $request = Request::fromGlobals(
+            ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/parse-json', 'CONTENT_TYPE' => 'application/json; charset=utf-8'],
+            [],
+            [],
+            [],
+            '{"x":1}',
+        );
+
+        $response = $kernel->handle($request);
+
+        self::assertSame(200, $response->status());
+        self::assertSame(['x' => 1], json_decode($response->body(), true, 512, JSON_THROW_ON_ERROR));
+    }
+
+    public function test_multipart_content_type_with_boundary_is_accepted(): void
+    {
+        ['kernel' => $kernel] = $this->prepareKernel();
+
+        // Real multipart requests always carry `; boundary=…`. Comparing the raw
+        // header rejected every browser upload with 415 before reaching routes.
+        $request = Request::fromGlobals(
+            ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/login', 'CONTENT_TYPE' => 'multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW'],
+            [],
+            [],
+            [],
+            "------WebKitFormBoundary7MA4YWxkTrZu0gW\r\nContent-Disposition: form-data; name=\"username\"\r\n\r\nada\r\n------WebKitFormBoundary7MA4YWxkTrZu0gW--\r\n",
+        );
+
+        $response = $kernel->handle($request);
+
+        self::assertSame(200, $response->status());
+    }
+
+    public function test_unsupported_content_type_with_parameters_still_returns_415(): void
+    {
+        ['kernel' => $kernel] = $this->prepareKernel();
+
+        $request = Request::fromGlobals(
+            ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/login', 'CONTENT_TYPE' => 'application/xml; charset=utf-8'],
+            [],
+            [],
+            [],
+            '<root/>',
+        );
+
+        $response = $kernel->handle($request);
+
+        self::assertSame(415, $response->status());
+    }
+
     public function test_missing_content_type_with_body_is_allowed_and_parsed(): void
     {
         ['kernel' => $kernel] = $this->prepareKernel();

@@ -472,6 +472,29 @@ failures occur before requests can dispatch.
   variables or runs with visible diagnostics,
 - `--help` / `--version` — legacy options are retained.
 
+**Code generation** is owned by the framework console (`Sahil\Console`) and
+uses the native `unda:` namespace. Every generator shares
+`Sahil\Console\Generator\Generator`: application-root detection, PSR-4
+namespace resolution from the consuming application's `composer.json`,
+name validation, existing-file protection, backups and `php -l` checks all
+live in one place. The application only ships the minimal `sahil` entry point
+and its `bootstrap/` manifest; command classes are loaded from this package.
+
+```bash
+php sahil unda:controller UserController
+php sahil unda:model Billing/Invoice --migration
+php sahil unda:migration create_posts_table
+php sahil unda:middleware Authenticate
+php sahil unda:policy UserPolicy
+php sahil unda:provider PaymentServiceProvider
+php sahil unda:command SendInvoice
+php sahil unda:job ProcessPayment
+php sahil unda:seeder UserSeeder
+```
+
+Application-specific commands are opt-in through `bootstrap/commands.php`
+(a list of command class names), never by copying framework command files.
+
 ## HTTP kernel & routing (Phase 4)
 
 The kernel lives in `src/Http/Kernel.php`: one `handle(Request): Response`
@@ -1131,9 +1154,11 @@ final class SendWelcomeEmail extends Job
     {
     }
 
-    public function handle(): void
+    public function handle(): mixed
     {
         // send the welcome email
+
+        return null;
     }
 
     public function maxAttempts(): ?int
