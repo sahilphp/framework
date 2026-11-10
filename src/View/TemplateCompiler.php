@@ -241,6 +241,36 @@ final class TemplateCompiler
                 ++$this->line;
             }
 
+            // Handle <fiber:component> tag
+            if (preg_match("/\\G<fiber:component[ \\>]/i", substr($template, $offset), $match) === 1) {
+                // Parse the name attribute
+                $tagContent = substr($template, $offset + strlen($match[0]));
+                if (preg_match("/\\Gname=\"([^\"]+)\"/i", $tagContent, $nameMatch) === 1) {
+                    $componentName = $nameMatch[1];
+                    $offset += strlen($match[0]) + strlen($nameMatch[0]);
+
+                    // Skip any whitespace and self-closing /
+                    $remaining = substr($template, $offset);
+                    if (preg_match("/\\G\\s*\\?>/i", $remaining, $slashMatch) === 1) {
+                        $offset += strlen($slashMatch[0]);
+                    } else {
+                        // Skip to >
+                        $gtPos = strpos($template, ">", $offset);
+                        if ($gtPos !== false) {
+                            $offset = $gtPos + 1;
+                        } else {
+                            $offset = $length;
+                        }
+                    }
+
+                    // Flush text and emit component resolution code
+                    $php .= $this->flushText($text);
+                    $php .= "\\$__ctx->component(" . var_export($componentName, true) . ");\\n";
+
+                    continue;
+                }
+            }
+
             $text .= $character;
             ++$offset;
         }
