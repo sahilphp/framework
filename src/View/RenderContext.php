@@ -368,4 +368,35 @@ final class RenderContext
 
         return false;
     }
+
+    /**
+     * `@component('ClassName')` / `<fiber:component name="Counter" />` —
+     * resolves a Firefiber component from the template's data context.
+     *
+     * The component class must extend Sahil\Firefiber\Component and be
+     * instantiated in the page's `components()` method.
+     *
+     * @param string $class Component class name (short or fully-qualified)
+     * @return string Rendering instruction for PageRenderer
+     */
+    public function component(string $class): string
+    {
+        // Validate the component class name
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]+$/', $class)) {
+            return sprintf('<!-- @component: %s - invalid class name>', $class);
+        }
+
+        // Look up the component from the template's data context.
+        // When a page renders, its components are passed as the 'components' variable.
+        $component = $this->get($class);
+
+        if ($component instanceof Component) {
+            // Component instance found - emit rendering instruction
+            // The actual rendering happens through PageRenderer when the page is processed
+            return sprintf('$__ctx->component(%s);', var_export($class, true));
+        }
+
+        // Component not found in data - return marker
+        return sprintf('<!-- @component: %s - add component to data context>', $class);
+    }
 }

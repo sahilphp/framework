@@ -40,6 +40,7 @@ final class TemplateCompiler
         'section', 'parent', 'endsection',
         'extends', 'yield', 'include', 'json',
         'asset_css', 'asset_js', 'asset_client',
+        'component',
     ];
 
     /** Directives that take no arguments at all. */
@@ -533,6 +534,7 @@ final class TemplateCompiler
             'asset_css' => $this->compileAsset('css', $arguments, $line),
             'asset_js' => $this->compileAsset('js', $arguments, $line),
             'asset_client' => "echo \$__ctx->assetClient();\n",
+            'component' => $this->compileComponent($arguments, $line),
             default => throw new ViewSyntaxException($this->template, $line, sprintf('Unknown directive @%s.', $name)),
         };
     }
@@ -696,6 +698,37 @@ final class TemplateCompiler
         $data = $parts === [] ? '[]' : $this->arrayLiteral($parts[0], '@include', $line);
 
         return sprintf("echo \$__ctx->include(%s, %s);\n", $name, $data);
+    }
+
+    private function compileComponent(?string $arguments, int $line): string
+    {
+        $class = $this->requireArguments($arguments, '@component', $line);
+
+        // Strip surrounding quotes if present (e.g., 'ClassName' or "ClassName")
+        if (preg_match('/^["]\'"(.+)["]\'"$/', $class, $m)) {
+            $class = $m[1];
+        }
+
+        // Validate that the class name is a valid PHP identifier (strip surrounding quotes)
+        // Remove surrounding quotes if present
+        if (strlen($class) > 1 && ($class[0] === '\'' || $class[0] === '"') && $class[strlen($class)-1] === $class[0]) {
+            $class = substr($class, 1, -1);
+        }
+
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]+$/', $class)) {
+            throw new ViewSyntaxException(
+                $this->template,
+                $line,
+                sprintf('@component expects a valid component class name, got [%s].', $class),
+            );
+        }
+
+        // Export the class name as a variable available in the template context
+        // The component will be instantiated and rendered by the PageRenderer
+        return sprintf(
+            "\$__ctx->component(%s);\n",
+            var_export($class, true)
+        );
     }
 
     /**
