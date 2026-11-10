@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Sahil\Tests\View;
 
 use Sahil\Contracts\Assets\AssetManagerContract;
+use Sahil\Contracts\View\ComponentRendererContract;
 use Sahil\View\TemplateCompiler;
 use Sahil\View\TemplateResolver;
 use Sahil\View\ViewEngine;
@@ -109,9 +110,9 @@ final class TempViewWorkspace
         return new TemplateCompiler($this->cache);
     }
 
-    public function engine(?AssetManagerContract $assets = null): ViewEngine
+    public function engine(?AssetManagerContract $assets = null, ?ComponentRendererContract $components = null): ViewEngine
     {
-        return new ViewEngine($this->resolver(), $this->compiler(), $assets);
+        return new ViewEngine($this->resolver(), $this->compiler(), $assets, $components);
     }
 
     /**

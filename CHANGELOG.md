@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `Sahil\Contracts\View\ComponentRendererContract`: templates can render a
+  server-driven UI component by name, and a UI package (Firefiber) supplies
+  the implementation. `ViewEngine` accepts the renderer as an optional fourth
+  constructor argument.
+- `@component('Name')` and `<fiber:component name="Name" />` template syntaxes.
+  Both compile to one `$__ctx->component()` call that emits rendered markup,
+  support fully-qualified class names, kebab-case attributes mapped to
+  camelCase properties, and `:attr="expression"` bound attributes.
 - Framework-owned `Sahil\Console` application, built-in project commands,
   native `unda:*` generators, and the project installer used by the
   `sahilphp/sahilphp` starter.
@@ -17,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Component templates now render through the bound component renderer instead
+  of emitting a bare, discarded `$__ctx->component(...)` call and leaving
+  marker comments in the response.
+- `RenderContext::component()` validates names and fails with a clear
+  `ViewRenderException` when no renderer is installed or the name is invalid.
+- Compiled-template cache version bumped so existing compiled views are
+  regenerated with the component support.
 - Generator command help no longer prints every option twice.
 - Nested policies (`unda:policy Admin/UserPolicy`) document the matching
   nested model (`App\Models\Admin\User`).

@@ -6,6 +6,7 @@ namespace Sahil\View;
 
 use ArrayAccess;
 use Sahil\Contracts\Assets\AssetManagerContract;
+use Sahil\Contracts\View\ComponentRendererContract;
 
 /**
  * The runtime state a compiled template sees as `$__ctx`.
@@ -51,6 +52,7 @@ final class RenderContext
         private readonly SectionBag $sections,
         private readonly int $depth = 0,
         private readonly ?AssetManagerContract $assets = null,
+        private readonly ?ComponentRendererContract $components = null,
     ) {
         $this->data = $data;
     }
@@ -370,33 +372,40 @@ final class RenderContext
     }
 
     /**
-     * `@component('ClassName')` / `<fiber:component name="Counter" />` —
-     * resolves a Firefiber component from the template's data context.
+     * `@component('Counter')` / `<fiber:component name="Counter" />` —
+     * renders one server-driven UI component instance.
      *
-     * The component class must extend Sahil\Firefiber\Component and be
-     * instantiated in the page's `components()` method.
+     * The template only names the component. Resolving that name, validating
+     * properties, instantiating the class and producing markup (including the
+     * signed hydration snapshot) is the component renderer's job, so both
+     * syntaxes share exactly one rendering path.
      *
-     * @param string $class Component class name (short or fully-qualified)
-     * @return string Rendering instruction for PageRenderer
+     * The returned markup is raw HTML produced by this engine's own renderer,
+     * so it is emitted without escaping.
+     *
+     * @param string $name Component name: short (`Counter`) or fully-qualified
+     *                     (`App\Firefiber\Components\Counter`).
+     * @param array<string, mixed> $attributes Component properties.
      */
-    public function component(string $class): string
+    public function component(string $name, array $attributes = []): string
     {
-        // Validate the component class name
-        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]+$/', $class)) {
-            return sprintf('<!-- @component: %s - invalid class name>', $class);
+        $name = trim($name);
+
+        if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*(\\\\[A-Za-z_][A-Za-z0-9_]*)*$/', $name) !== 1) {
+            throw new ViewRenderException(sprintf(
+                'Invalid component name [%s]: expected a class name or a fully-qualified class name.',
+                $name,
+            ));
         }
 
-        // Look up the component from the template's data context.
-        // When a page renders, its components are passed as the 'components' variable.
-        $component = $this->get($class);
-
-        if ($component instanceof Component) {
-            // Component instance found - emit rendering instruction
-            // The actual rendering happens through PageRenderer when the page is processed
-            return sprintf('$__ctx->component(%s);', var_export($class, true));
+        if ($this->components === null) {
+            throw new ViewRenderException(sprintf(
+                'Cannot render component [%s]: no component renderer is installed. '
+                .'Install a server-driven UI package (for example sahilphp/firefiber) and register its provider.',
+                $name,
+            ));
         }
 
-        // Component not found in data - return marker
-        return sprintf('<!-- @component: %s - add component to data context>', $class);
+        return $this->components->renderComponent($name, $attributes);
     }
 }

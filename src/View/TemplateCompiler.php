@@ -31,7 +31,7 @@ final class TemplateCompiler
      * Bump when a compiler change can alter emitted PHP; old compiled files
      * then miss the freshness check and are regenerated.
      */
-    private const CACHE_VERSION = '3';
+    private const CACHE_VERSION = '4';
 
     /** Directives the language understands; anything else is literal text. */
     private const DIRECTIVES = [
@@ -241,34 +241,14 @@ final class TemplateCompiler
                 ++$this->line;
             }
 
-            // Handle <fiber:component> tag
-            if (preg_match("/\\G<fiber:component[ \\>]/i", substr($template, $offset), $match) === 1) {
-                // Parse the name attribute
-                $tagContent = substr($template, $offset + strlen($match[0]));
-                if (preg_match("/\\Gname=\"([^\"]+)\"/i", $tagContent, $nameMatch) === 1) {
-                    $componentName = $nameMatch[1];
-                    $offset += strlen($match[0]) + strlen($nameMatch[0]);
+            // Handle <fiber:component ... /> and <fiber:component ...></fiber:component>
+            if ($character === '<' && preg_match('/\G<fiber:component(?=[\s\/>])/i', substr($template, $offset)) === 1) {
+                $tag = $this->readComponentTag($template, $offset);
+                $php .= $this->flushText($text);
+                $php .= $this->compileComponentTag($tag['name'], $tag['attributes'], $tag['line']);
+                $offset = $tag['offset'];
 
-                    // Skip any whitespace and self-closing /
-                    $remaining = substr($template, $offset);
-                    if (preg_match("/\\G\\s*\\?>/i", $remaining, $slashMatch) === 1) {
-                        $offset += strlen($slashMatch[0]);
-                    } else {
-                        // Skip to >
-                        $gtPos = strpos($template, ">", $offset);
-                        if ($gtPos !== false) {
-                            $offset = $gtPos + 1;
-                        } else {
-                            $offset = $length;
-                        }
-                    }
-
-                    // Flush text and emit component resolution code
-                    $php .= $this->flushText($text);
-                    $php .= "\\$__ctx->component(" . var_export($componentName, true) . ");\\n";
-
-                    continue;
-                }
+                continue;
             }
 
             $text .= $character;
@@ -732,33 +712,211 @@ final class TemplateCompiler
 
     private function compileComponent(?string $arguments, int $line): string
     {
-        $class = $this->requireArguments($arguments, '@component', $line);
+        $class = trim($this->requireArguments($arguments, '@component', $line));
 
-        // Strip surrounding quotes if present (e.g., 'ClassName' or "ClassName")
-        if (preg_match('/^["]\'"(.+)["]\'"$/', $class, $m)) {
-            $class = $m[1];
-        }
-
-        // Validate that the class name is a valid PHP identifier (strip surrounding quotes)
-        // Remove surrounding quotes if present
-        if (strlen($class) > 1 && ($class[0] === '\'' || $class[0] === '"') && $class[strlen($class)-1] === $class[0]) {
+        // Accept a quoted literal: @component('Name') or @component("App\...\Name").
+        if (strlen($class) > 1 && ($class[0] === '\'' || $class[0] === '"') && $class[strlen($class) - 1] === $class[0]) {
             $class = substr($class, 1, -1);
         }
 
-        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]+$/', $class)) {
+        $class = str_replace('\\\\', '\\', $class);
+
+        if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*(\\\\[A-Za-z_][A-Za-z0-9_]*)*$/', $class) !== 1) {
             throw new ViewSyntaxException(
                 $this->template,
                 $line,
-                sprintf('@component expects a valid component class name, got [%s].', $class),
+                sprintf('@component expects a component class name or fully-qualified class name, got [%s].', $class),
             );
         }
 
-        // Export the class name as a variable available in the template context
-        // The component will be instantiated and rendered by the PageRenderer
-        return sprintf(
-            "\$__ctx->component(%s);\n",
-            var_export($class, true)
+        return $this->compileComponentTag($class, [], $line);
+    }
+
+    /**
+     * Read one `<fiber:component ... />` or `<fiber:component ...>...</fiber:component>`
+     * tag starting at `$offset`.
+     *
+     * Inner content between an opening and closing tag is not a slot: a
+     * component renders its own markup on the server, so any nested content
+     * (including nested component tags) is consumed with the pair.
+     *
+     * @return array{name: string, attributes: array<string, string|array{expression: string}>, offset: int, line: int}
+     */
+    private function readComponentTag(string $template, int $offset): array
+    {
+        $line = $this->line;
+        $start = $offset + strlen('<fiber:component');
+        $end = $this->findTagEnd($template, $start);
+
+        if ($end === null) {
+            throw new ViewSyntaxException(
+                $this->template,
+                $line,
+                'Unterminated <fiber:component> tag: expected a closing `>` or `/>`',
+            );
+        }
+
+        $source = substr($template, $start, $end - $start);
+        $selfClosing = str_ends_with(rtrim($source), '/');
+
+        if ($selfClosing) {
+            $source = substr(rtrim($source), 0, -1);
+        }
+
+        $attributes = $this->parseComponentAttributes($source, $line);
+        $offset = $end + 1;
+
+        if (!$selfClosing) {
+            $closing = stripos($template, '</fiber:component>', $offset);
+
+            if ($closing === false) {
+                throw new ViewSyntaxException(
+                    $this->template,
+                    $line,
+                    'Unterminated <fiber:component> element: expected </fiber:component>',
+                );
+            }
+
+            $this->line += substr_count($template, "\n", $end, $closing - $end);
+            $offset = $closing + strlen('</fiber:component>');
+        }
+
+        $name = $attributes['name'] ?? null;
+        unset($attributes['name']);
+
+        if (!is_string($name) || trim($name) === '') {
+            throw new ViewSyntaxException(
+                $this->template,
+                $line,
+                '<fiber:component> requires a non-empty name attribute',
+            );
+        }
+
+        return [
+            'name' => trim($name),
+            'attributes' => $attributes,
+            'offset' => $offset,
+            'line' => $line,
+        ];
+    }
+
+    /**
+     * Locate the `>` that ends a tag, ignoring `>` inside quoted values.
+     */
+    private function findTagEnd(string $template, int $offset): ?int
+    {
+        $length = strlen($template);
+        $quote = null;
+
+        for ($position = $offset; $position < $length; ++$position) {
+            $character = $template[$position];
+
+            if ($quote !== null) {
+                if ($character === $quote) {
+                    $quote = null;
+                }
+
+                continue;
+            }
+
+            if ($character === '"' || $character === "'") {
+                $quote = $character;
+
+                continue;
+            }
+
+            if ($character === '>') {
+                return $position;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Parse the attribute list of a `<fiber:component>` tag.
+     *
+     * Plain values are literal strings; a `:name` attribute binds a template
+     * expression instead, so page data can be passed to a component:
+     * `<fiber:component name="Profile" :user-id="user.id" />`.
+     *
+     * @return array<string, string|array{expression: string}>
+     */
+    private function parseComponentAttributes(string $source, int $line): array
+    {
+        $attributes = [];
+        $pattern = '/([:]?[A-Za-z_][A-Za-z0-9_.:-]*)(?:\s*=\s*("[^"]*"|\'[^\']*\'|[^\s\/>]+))?/u';
+
+        if (preg_match_all($pattern, $source, $matches, PREG_SET_ORDER) === false) {
+            return $attributes;
+        }
+
+        foreach ($matches as $match) {
+            $name = $match[1];
+            $bound = str_starts_with($name, ':');
+            $name = ltrim($name, ':');
+
+            if ($name === '') {
+                continue;
+            }
+
+            $raw = $match[2] ?? '';
+
+            if (strlen($raw) > 1 && ($raw[0] === '"' || $raw[0] === "'") && $raw[strlen($raw) - 1] === $raw[0]) {
+                $raw = substr($raw, 1, -1);
+            }
+
+            $property = $this->attributeName($name);
+
+            if ($bound) {
+                $attributes[$property] = ['expression' => $this->expression($raw, '<fiber:component>', $line)];
+
+                continue;
+            }
+
+            $attributes[$property] = $raw;
+        }
+
+        return $attributes;
+    }
+
+    /**
+     * `user-id` becomes the `userId` property, matching component property names.
+     */
+    private function attributeName(string $name): string
+    {
+        if (!str_contains($name, '-')) {
+            return $name;
+        }
+
+        return (string) preg_replace_callback(
+            '/-(.)/',
+            static fn (array $match): string => strtoupper($match[1]),
+            $name,
         );
+    }
+
+    /**
+     * Emit the shared rendering call used by both component syntaxes.
+     *
+     * @param array<string, string|array{expression: string}> $attributes
+     */
+    private function compileComponentTag(string $name, array $attributes, int $line): string
+    {
+        $argument = var_export($name, true);
+
+        if ($attributes !== []) {
+            $pairs = [];
+
+            foreach ($attributes as $property => $value) {
+                $pairs[] = var_export((string) $property, true).' => '
+                    .(is_array($value) ? '('.$value['expression'].')' : var_export($value, true));
+            }
+
+            $argument .= ', ['.implode(', ', $pairs).']';
+        }
+
+        return sprintf("echo \$__ctx->component(%s);\n", $argument);
     }
 
     /**
