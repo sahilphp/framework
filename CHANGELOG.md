@@ -48,6 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   marker comments in the response.
 - `RenderContext::component()` validates names and fails with a clear
   `ViewRenderException` when no renderer is installed or the name is invalid.
+- `Render::manager()` no longer autowires an empty `RenderManager` when the
+  class is unbound: `Container::has()` is true for any concrete class, so the
+  check now uses `bound()` and unbound applications correctly fall back to the
+  native `html` adapter instead of failing every render.
 - Compiled-template cache version bumped so existing compiled views are
   regenerated with the component support.
 - Generator command help no longer prints every option twice.

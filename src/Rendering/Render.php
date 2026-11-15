@@ -70,7 +70,9 @@ final class Render
 
         $application = Application::peek();
 
-        if ($application !== null && $application->container()->has(RenderManager::class)) {
+        // bound() not has(): RenderManager is a concrete class, so has() is
+        // always true and make() would autowire a manager with zero adapters.
+        if ($application !== null && $application->container()->bound(RenderManager::class)) {
             /** @var RenderManager $manager */
             $manager = $application->container()->make(RenderManager::class);
 

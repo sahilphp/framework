@@ -70,6 +70,55 @@ final class UnifiedRenderTest extends TestCase
         ]);
     }
 
+    public function test_unbound_render_manager_falls_back_to_native_html_adapter(): void
+    {
+        $app = \Sahil\Foundation\Application::configure(__DIR__.'/../Fixtures/app-root');
+
+        try {
+            $views = new class () implements ViewContract {
+                public function render(string $view, array $data = []): string
+                {
+                    return $this->renderView($view, $data)->markup();
+                }
+
+                public function renderView(string $view, array $data = []): RenderedView
+                {
+                    return new RenderedView($view, $data, '<h1>'.$data['message'].'</h1>');
+                }
+
+                public function exists(string $view): bool
+                {
+                    return true;
+                }
+
+                /** @return list<string> */
+                public function paths(): array
+                {
+                    return [];
+                }
+
+                public function flush(): int
+                {
+                    return 0;
+                }
+            };
+
+            $app->container()->instance(ViewContract::class, $views);
+
+            // RenderManager deliberately unbound: container()->has() is true
+            // for the concrete class — bound() must gate the make() path or
+            // the manager autowires with zero adapters.
+            self::assertFalse($app->container()->bound(RenderManager::class));
+
+            $response = Render::html('pages.home', ['message' => 'Fallback']);
+
+            self::assertSame('<h1>Fallback</h1>', $response->body());
+            self::assertSame(200, $response->status());
+        } finally {
+            \Sahil\Foundation\Application::free();
+        }
+    }
+
     public function test_html_adapter_renders_through_view_engine(): void
     {
         $manager = $this->manager();
