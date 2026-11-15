@@ -11,7 +11,7 @@ use Sahil\Http\Kernel;
 use Sahil\Http\Middleware\MiddlewareContract;
 use Sahil\Http\Request;
 use Sahil\Http\Response;
-use Sahil\Http\Route;
+use Sahil\Routing\Link;
 use Sahil\Http\Router;
 
 final class KernelTest extends TestCase
@@ -57,7 +57,7 @@ final class KernelTest extends TestCase
     public function test_kernel_dispatches_controller_and_returns_response(): void
     {
         $kernel = self::kernelWith([
-            Route::get('/ping', static fn (): Response => Response::text('pong')),
+            Link::get('/ping', static fn (): Response => Response::text('pong')),
         ]);
 
         $response = $kernel->handle(self::request('/ping'));
@@ -69,7 +69,7 @@ final class KernelTest extends TestCase
     public function test_controller_class_resolved_through_container_with_route_params(): void
     {
         $kernel = self::kernelWith([
-            Route::get('/greet/{name}', [EchoController::class, 'greet']),
+            Link::get('/greet/{name}', [EchoController::class, 'greet']),
         ]);
 
         $response = $kernel->handle(self::request('/greet/sahil'));
@@ -83,7 +83,7 @@ final class KernelTest extends TestCase
         $trace = new Trace();
 
         $kernel = self::kernelWith(
-            [Route::get('/inner', static fn (Request $request): Response => Response::text('done'))],
+            [Link::get('/inner', static fn (Request $request): Response => Response::text('done'))],
             middleware: [new HeaderTagging($trace, 'outer'), new HeaderTagging($trace, 'inner')],
         );
 
@@ -99,7 +99,7 @@ final class KernelTest extends TestCase
         $trace = new Trace();
 
         $kernel = self::kernelWith(
-            [Route::get('/inner', static fn (): Response => Response::text('done'))->middleware(new HeaderTagging($trace, 'route'))],
+            [Link::get('/inner', static fn (): Response => Response::text('done'))->middleware(new HeaderTagging($trace, 'route'))],
             middleware: [new HeaderTagging($trace, 'global')],
         );
 
@@ -120,7 +120,7 @@ final class KernelTest extends TestCase
 
         $jobIds = [];
         $router = new Router();
-        $router->register(Route::get('/jobs', static function (Request $request) use ($container, &$jobIds): Response {
+        $router->register(Link::get('/jobs', static function (Request $request) use ($container, &$jobIds): Response {
             $first = spl_object_id($container->make(RequestJob::class));
             $second = spl_object_id($container->make(RequestJob::class));
 
@@ -146,7 +146,7 @@ final class KernelTest extends TestCase
     public function test_http_exceptions_render_with_status_and_headers(): void
     {
         $kernel = self::kernelWith([
-            Route::get('/gone', static function (): never {
+            Link::get('/gone', static function (): never {
                 throw new \Sahil\Http\Exception\NotFoundHttpException('Gone away.');
             }),
         ]);
@@ -163,7 +163,7 @@ final class KernelTest extends TestCase
     public function test_uncaught_exceptions_render_safe_500(): void
     {
         $kernel = self::kernelWith([
-            Route::get('/boom', static function (): never {
+            Link::get('/boom', static function (): never {
                 throw new \RuntimeException('database fallen over');
             }),
         ]);
@@ -179,7 +179,7 @@ final class KernelTest extends TestCase
     public function test_debug_mode_exposes_messages_only_via_explicit_optin(): void
     {
         $kernel = self::kernelWith([
-            Route::get('/boom', static function (): never {
+            Link::get('/boom', static function (): never {
                 throw new \RuntimeException('database fallen over');
             }),
         ], debug: true);
@@ -193,7 +193,7 @@ final class KernelTest extends TestCase
     public function test_kernel_is_reentrant_for_worker_simulation(): void
     {
         $kernel = self::kernelWith([
-            Route::get('/workers', static fn (): Response => Response::json(['ok' => true])),
+            Link::get('/workers', static fn (): Response => Response::json(['ok' => true])),
         ]);
 
         foreach (range(1, 3) as $iteration) {
@@ -202,6 +202,149 @@ final class KernelTest extends TestCase
             self::assertSame(200, $response->status(), "iterative request iter=$iteration must behave identically");
             self::assertSame('{"ok":true}', $response->body());
         }
+    }
+
+    public function test_middleware_exceptions_are_rendered_like_controller_ones(): void
+    {
+        $kernel = self::kernelWith(
+            [Link::get('/guarded', static fn (): Response => Response::text('never'))],
+            middleware: [new class implements MiddlewareContract {
+                public function handle(Request $request, \Closure $next): Response
+                {
+                    throw new \DomainException('middleware blew up');
+                }
+            }],
+        );
+
+        $response = $kernel->handle(self::request('/guarded', headers: ['Accept' => 'application/json']));
+
+        self::assertSame(500, $response->status());
+        self::assertSame(
+            '{"error":"server_error","message":"Hitilafu imetokea kwenye seva"}',
+            $response->body(),
+        );
+    }
+
+    public function test_php_errors_and_type_errors_render_as_safe_500s(): void
+    {
+        $kernel = self::kernelWith([
+            Link::get('/engine-error', static function (): never {
+                throw new \Error('engine exploded');
+            }),
+        ]);
+
+        $request = fn (string $path) => self::request($path, headers: ['Accept' => 'application/json']);
+
+        $response = $kernel->handle($request('/engine-error'));
+        self::assertSame(500, $response->status());
+        self::assertStringNotContainsString('engine exploded', $response->body());
+    }
+
+    public function test_debug_identifies_engine_errors_the_same_way(): void
+    {
+        $kernel = self::kernelWith([
+            Link::get('/engine-error', static function (): never {
+                throw new \TypeError('wrong signature');
+            }),
+        ], debug: true);
+
+        $response = $kernel->handle(self::request('/engine-error', headers: ['Accept' => 'application/json']));
+
+        /** @var array{error: array{type: string}} $payload */
+        $payload = json_decode($response->body(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('TypeError', $payload['error']['type']);
+    }
+
+    public function test_a_throwing_exception_handler_falls_back_to_builtin_rendering(): void
+    {
+        $app = self::applicationBinding();
+        $app->register(new class ($app) extends ServiceProvider {});
+        $app->boot();
+
+        $router = new Router();
+        $router->register(Link::get('/boom', static function (): never {
+            throw new \RuntimeException('primary failure');
+        }));
+
+        $kernel = (new Kernel($router, $app->container(), $app))
+            ->usingExceptionHandler(static function (): never {
+                throw new \RuntimeException('the handler itself exploded');
+            });
+
+        $response = $kernel->handle(self::request('/boom', headers: ['Accept' => 'application/json']));
+
+        self::assertSame(500, $response->status());
+        self::assertSame(
+            '{"error":"server_error","message":"Hitilafu imetokea kwenye seva"}',
+            $response->body(),
+        );
+        self::assertFalse($app->container()->hasOpenScopes(), 'the request scope still closed');
+    }
+
+    public function test_request_scope_closes_when_the_pipeline_throws(): void
+    {
+        $app = self::applicationBinding();
+        $app->register(new class ($app) extends ServiceProvider {});
+        $app->boot();
+
+        $container = $app->container();
+        $container->scoped(RequestJob::class);
+
+        $router = new Router();
+        $router->register(Link::get('/fail', static function () use ($container): never {
+            $container->make(RequestJob::class);
+
+            throw new \RuntimeException('after scoping');
+        }));
+
+        $kernel = new Kernel($router, $container, $app);
+        $kernel->handle(self::request('/fail'));
+
+        self::assertFalse($container->hasOpenScopes(), 'the scope is torn down even on the error path');
+
+        // The next request still gets a fresh scope.
+        $kernel->handle(self::request('/fail'));
+        self::assertFalse($container->hasOpenScopes());
+    }
+
+    public function test_explicit_http_statuses_are_never_flattened_to_500(): void
+    {
+        $kernel = self::kernelWith([
+            Link::get('/missing', static function (): never {
+                throw new \Sahil\Http\Exception\NotFoundHttpException();
+            }),
+            Link::get('/forbidden', static function (): never {
+                throw new class ('denied') extends \Sahil\Http\Exception\HttpException {
+                    public function __construct(string $message)
+                    {
+                        parent::__construct(403, $message);
+                    }
+                };
+            }),
+            Link::get('/whoami', static function (): never {
+                throw new class ('unauthorized') extends \Sahil\Http\Exception\HttpException {
+                    public function __construct(string $message)
+                    {
+                        parent::__construct(401, $message, ['WWW-Authenticate' => 'Bearer']);
+                    }
+                };
+            }),
+        ]);
+
+        $json = ['Accept' => 'application/json'];
+
+        $response = $kernel->handle(self::request('/missing', headers: $json));
+        self::assertSame(404, $response->status());
+        self::assertSame('{"error":"http_error","status":404}', $response->body());
+
+        $response = $kernel->handle(self::request('/forbidden', headers: $json));
+        self::assertSame(403, $response->status());
+        self::assertSame('{"error":"http_error","status":403}', $response->body());
+
+        $response = $kernel->handle(self::request('/whoami', headers: $json));
+        self::assertSame(401, $response->status());
+        self::assertSame('Bearer', $response->header('WWW-Authenticate'), 'exception headers survive');
+        self::assertSame('{"error":"http_error","status":401}', $response->body());
     }
 }
 

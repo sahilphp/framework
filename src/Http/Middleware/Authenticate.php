@@ -6,6 +6,7 @@ namespace Sahil\Http\Middleware;
 
 use Closure;
 use Sahil\Auth\AuthManager;
+use Sahil\Auth\Tokens\TokenGuard;
 use Sahil\Http\Request;
 use Sahil\Http\Response;
 
@@ -15,7 +16,7 @@ use Sahil\Http\Response;
  * Requires the user to be authenticated. Redirects to login or returns
  * a 401 response for unauthenticated requests.
  */
-final class Authenticate
+final class Authenticate implements MiddlewareContract, ParameterizedMiddlewareContract
 {
     public function __construct(
         private readonly AuthManager $auth,
@@ -29,6 +30,40 @@ final class Authenticate
         }
 
         return $next($request);
+    }
+
+    /**
+     * `auth:{guard}` route middleware. `api` authenticates the bearer
+     * token and attaches the principal to THIS request only — it never
+     * writes a session and never redirects.
+     */
+    public function handleWithParameters(Request $request, Closure $next, array $parameters): Response
+    {
+        $guard = $parameters[0] ?? null;
+
+        if ($guard === 'api') {
+            $user = (new TokenGuard())->authenticate($request);
+
+            if ($user === null) {
+                return Response::json([
+                    'error' => 'unauthenticated',
+                    'message' => 'Authentication required.',
+                ], 401);
+            }
+
+            $this->auth->viaToken($user);
+
+            return $next($request);
+        }
+
+        if ($guard === null) {
+            return $this->handle($request, $next);
+        }
+
+        throw new \RuntimeException(sprintf(
+            'Unknown auth guard [%s]; supported: api.',
+            is_string($guard) ? $guard : get_debug_type($guard),
+        ));
     }
 
     /**

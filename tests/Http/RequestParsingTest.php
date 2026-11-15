@@ -62,7 +62,7 @@ final class RequestParsingTest extends TestCase
         self::assertSame('abc123', $request->cookie('session'));
         self::assertNull($request->cookie('missing'));
         self::assertSame(['session' => 'abc123'], $request->cookies(), 'cookies must become string-only map');
-        self::assertSame(['field' => 'value'], $request->form());
+        self::assertSame(['field' => 'value'], $request->form()->all());
     }
 
     public function test_client_ip_reads_remote_addr_only(): void

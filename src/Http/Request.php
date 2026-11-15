@@ -6,6 +6,9 @@ namespace Sahil\Http;
 
 use Sahil\Http\Exception\BadRequestHttpException;
 use Sahil\Http\Exception\MethodNotAllowedHttpException;
+use Sahil\Validation\FormInput;
+use Sahil\Validation\ValidationException;
+use Sahil\Validation\Validator;
 
 /**
  * Immutable, validated HTTP request representation.
@@ -50,6 +53,7 @@ final class Request
         private readonly ?string $scheme,
         private readonly ?string $contentType,
         private readonly array $form,
+        private readonly array $files = [],
     ) {
     }
 
@@ -67,6 +71,7 @@ final class Request
      * @param array<string, mixed> $query    replaces $_GET (test override)
      * @param array<string, string> $cookies replaces $_COOKIE (test override)
      * @param array<string, string> $form    replaces $_POST (test override)
+     * @param array<string, mixed> $files    replaces $_FILES (test override)
      */
     public static function fromGlobals(
         ?array $server = null,
@@ -74,20 +79,23 @@ final class Request
         ?array $cookies = null,
         ?array $form = null,
         ?string $body = null,
+        ?array $files = null,
     ): self {
         $server ??= $_SERVER;
         $query ??= $_GET;
         $cookies ??= $_COOKIE;
         $form ??= $_POST;
         $body ??= self::rawBody();
+        $files ??= $_FILES;
 
         return self::build(
             method: self::extractMethod($server),
             server: $server,
-            query: self::stringMap($query, 'GET'),
+            query: self::queryMap($query),
             cookies: self::stringMap($cookies, 'COOKIE'),
             form: self::stringMap($form, 'POST'),
             body: $body,
+            files: $files,
         );
     }
 
@@ -131,9 +139,10 @@ final class Request
     }
 
     /**
-     * All parsed query parameters as a string-keyed, string-valued map.
+     * All parsed query parameters. Scalars stay strings; nested
+     * `?filter[x]=y` structures survive as arrays of scalars.
      *
-     * @return array<string, string>
+     * @return array<string, string|array>
      */
     public function query(): array
     {
@@ -167,6 +176,32 @@ final class Request
     public function cookies(): array
     {
         return $this->cookies;
+    }
+
+    /**
+     * Uploaded files as `name → UploadedFile` (or `name → list<UploadedFile>`
+     * for `photos[]`-style inputs). Failed/missing uploads still surface as
+     * objects — `isValid()` reports their state to validation rules.
+     *
+     * @return array<string, UploadedFile|list<UploadedFile>>
+     */
+    public function files(): array
+    {
+        return $this->files;
+    }
+
+    /**
+     * One uploaded file by input name (first entry for array inputs).
+     */
+    public function file(string $name): ?UploadedFile
+    {
+        $file = $this->files[$name] ?? null;
+
+        if (is_array($file)) {
+            $file = $file[array_key_first($file)] ?? null;
+        }
+
+        return $file instanceof UploadedFile ? $file : null;
     }
 
     /**
@@ -294,13 +329,58 @@ final class Request
     }
 
     /**
-     * Sanitized form fields: string-keyed, string-only map.
-     *
-     * @return array<string, string>
+     * Sanitized form fields: a string-keyed, string-only map. The returned
+     * {@see Form} reads exactly like the array it is — `isset`, `foreach`,
+     * spread and `json_encode` keep working — and adds `->validate()`.
      */
-    public function form(): array
+    public function form(): Form
     {
-        return $this->form;
+        return new Form($this->form);
+    }
+
+    /**
+     * Validate this request's merged input — query parameters plus the
+     * body fields (JSON object or form map, body winning collisions) —
+     * and return only the validated data.
+     *
+     *     $data = $request->validate([
+     *         'email'    => 'required|email',
+     *         'password' => 'required|string|password|confirmed',
+     *     ]);
+     *
+     * On failure a {@see ValidationException} is thrown; the HTTP kernel
+     * answers JSON clients with 422 and redirects browsers back with the
+     * errors flashed into `$bag` (default bag when null) plus sanitized
+     * old input.
+     *
+     * @param array<string, string|array<int, mixed>> $rules
+     * @param array<string, string> $messages custom messages
+     *     (`field.rule` → `field` → bare `rule`)
+     * @param array<int, string>|string $normalize opt-in normalization (`trim`)
+     *
+     * @return array<string, mixed>
+     */
+    public function validate(
+        array $rules,
+        array $messages = [],
+        ?string $bag = null,
+        array|string $normalize = [],
+    ): array {
+        $input = FormInput::fromRequest($this);
+
+        $validator = new Validator($rules, $messages);
+
+        if ($normalize !== []) {
+            $validator = $validator->normalize($normalize);
+        }
+
+        $result = $validator->validate($input);
+
+        if ($result->fails()) {
+            throw ValidationException::forResult($result, $bag, $input);
+        }
+
+        return $result->data();
     }
 
     /**
@@ -373,6 +453,7 @@ final class Request
         array $cookies,
         array $form,
         string $body,
+        array $files = [],
     ): self {
         $uri = self::stringOrNull($server['REQUEST_URI'] ?? null) ?? '/';
 
@@ -397,7 +478,56 @@ final class Request
             scheme: self::schemeFrom($server),
             contentType: $contentType,
             form: $form,
+            files: self::uploadedFiles($files),
         );
+    }
+
+    /**
+     * Normalise the `$_FILES` superglobal into `UploadedFile` objects.
+     * Nested name arrays (`photos[]`) become `list<UploadedFile>` entries.
+     *
+     * @param array<string, mixed> $files
+     * @return array<string, UploadedFile|list<UploadedFile>>
+     */
+    private static function uploadedFiles(array $files): array
+    {
+        $normalized = [];
+
+        foreach ($files as $key => $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            if (isset($entry['tmp_name']) && is_array($entry['tmp_name'])) {
+                $list = [];
+
+                foreach ($entry['tmp_name'] as $index => $_) {
+                    $file = UploadedFile::fromFilesEntry([
+                        'tmp_name' => $entry['tmp_name'][$index] ?? null,
+                        'name' => $entry['name'][$index] ?? null,
+                        'type' => $entry['type'][$index] ?? null,
+                        'error' => $entry['error'][$index] ?? null,
+                        'size' => $entry['size'][$index] ?? null,
+                    ]);
+
+                    if ($file !== null) {
+                        $list[$index] = $file;
+                    }
+                }
+
+                $normalized[(string) $key] = $list;
+
+                continue;
+            }
+
+            $file = UploadedFile::fromFilesEntry($entry);
+
+            if ($file !== null) {
+                $normalized[(string) $key] = $file;
+            }
+        }
+
+        return $normalized;
     }
 
     /**
@@ -507,6 +637,32 @@ final class Request
         foreach ($source as $key => $value) {
             if (is_string($key) && $key !== '' && is_string($value)) {
                 $clean[$key] = $value;
+            }
+        }
+
+        return $clean;
+    }
+
+    /**
+     * Like {@see stringMap()} but preserves nested arrays of scalars so
+     * `?filter[status]=active&filter[role][]=admin` keeps its structure —
+     * non-scalar leaves are dropped.
+     */
+    private static function queryMap(array $source, int $depth = 0): array
+    {
+        $clean = [];
+
+        foreach ($source as $key => $value) {
+            if (!is_string($key) || $key === '') {
+                continue;
+            }
+
+            if (is_string($value)) {
+                $clean[$key] = $value;
+            } elseif (is_scalar($value)) {
+                $clean[$key] = (string) $value;
+            } elseif (is_array($value) && $depth < 4) {
+                $clean[$key] = self::queryMap($value, $depth + 1);
             }
         }
 

@@ -75,14 +75,40 @@ interface SessionContract
     public function token(): string;
 
     /**
-     * Validate a CSRF token.
+     * Issue a fresh CSRF token for this render, retiring the previous one
+     * into a bounded validity ring. Every page render should issue through
+     * this method so tokens rotate per request without invalidating forms
+     * in other tabs, on screen, or behind the browser back button.
+     */
+    public function issueToken(): string;
+
+    /**
+     * Validate a CSRF token. Accepts the current token and recently issued
+     * tokens still inside the validity ring.
      */
     public function validateToken(string $token): bool;
 
     /**
-     * Regenerate the CSRF token.
+     * Regenerate the CSRF token, keeping the outgoing one valid until the
+     * history ring rotates past it.
      */
     public function regenerateToken(): void;
+
+    /**
+     * Store a value that survives exactly one subsequent request
+     * (validation errors, old input).
+     */
+    public function flash(string $key, mixed $value): void;
+
+    /**
+     * Read a flashed value written by this or the previous request.
+     */
+    public function getFlash(string $key, mixed $default = null): mixed;
+
+    /**
+     * Read a key and remove it.
+     */
+    public function pull(string $key, mixed $default = null): mixed;
 
     /**
      * Get the session name (cookie name).

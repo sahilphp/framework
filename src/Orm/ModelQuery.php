@@ -86,6 +86,51 @@ final class ModelQuery
         return $this;
     }
 
+    public function whereNotNull(string $column): self
+    {
+        $this->builder = $this->builder->whereNull($column, true);
+
+        return $this;
+    }
+
+    /**
+     * @param list<mixed> $values
+     */
+    public function whereNotIn(string $column, array $values): self
+    {
+        $this->builder = $this->builder->whereIn($column, $values, negated: true);
+
+        return $this;
+    }
+
+    /**
+     * Grouped raw condition — developer-supplied SQL with bound values.
+     * Used for `(a LIKE ? OR b LIKE ?)` search groups; identifiers inside
+     * the expression must already be driver-quoted.
+     */
+    public function whereRaw(\Sahil\Database\Expression $expression, array $bindings = []): self
+    {
+        $this->builder = $this->builder->whereRaw($expression, $bindings);
+
+        return $this;
+    }
+
+    /** COUNT(*) over the current constraints — no order/limit pollution. */
+    public function count(): int
+    {
+        [$sql, $params] = $this->builder->countSql();
+
+        $row = $this->modelClass::shareConnection()->execute($sql, $params)->first();
+
+        return (int) ($row['aggregate'] ?? 0);
+    }
+
+    /** The driver's identifier quoting, for safe grouped expressions. */
+    public function quoteIdentifier(string $identifier): string
+    {
+        return $this->modelClass::shareConnection()->driver()->quoteIdentifier($identifier);
+    }
+
     public function orderBy(string $column, string $direction = 'asc'): self
     {
         $this->builder = $this->builder->orderBy($column, $direction);

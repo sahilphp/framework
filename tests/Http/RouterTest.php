@@ -9,7 +9,7 @@ use Sahil\Http\Exception\MethodNotAllowedHttpException;
 use Sahil\Http\Exception\NotFoundHttpException;
 use Sahil\Http\Request;
 use Sahil\Http\Response;
-use Sahil\Http\Route;
+use Sahil\Routing\Link;
 use Sahil\Http\Router;
 
 final class RouterTest extends TestCase
@@ -25,11 +25,11 @@ final class RouterTest extends TestCase
     {
         $router = new Router();
         $router->register(
-            Route::get('/health', static fn (): Response => Response::text('health')),
-            Route::get('/users/{id}', static fn (): Response => Response::text('user')),
-            Route::get('/users/{id}/posts/{postId}', static fn (): Response => Response::text('post')),
-            Route::get('/posts/{slug?}', static fn (): Response => Response::text('posts')),
-            Route::get('/files/{path:\d+}', static fn (): Response => Response::text('file')),
+            Link::get('/health', static fn (): Response => Response::text('health')),
+            Link::get('/users/{id}', static fn (): Response => Response::text('user')),
+            Link::get('/users/{id}/posts/{postId}', static fn (): Response => Response::text('post')),
+            Link::get('/posts/{slug?}', static fn (): Response => Response::text('posts')),
+            Link::get('/files/{path:\d+}', static fn (): Response => Response::text('file')),
         );
 
         // Static
@@ -63,7 +63,7 @@ final class RouterTest extends TestCase
     public function test_unmatched_path_throws_404(): void
     {
         $router = new Router();
-        $router->register(Route::get('/health', static fn (): Response => Response::text('health')));
+        $router->register(Link::get('/health', static fn (): Response => Response::text('health')));
 
         try {
             $router->match(self::request('/definitely-missing'));
@@ -77,9 +77,9 @@ final class RouterTest extends TestCase
     {
         $router = new Router();
         $router->register(
-            Route::get('/health', static fn (): Response => Response::text('x')),
-            Route::post('/users', static fn (): Response => Response::empty()),
-            Route::delete('/users', static fn (): Response => Response::empty()),
+            Link::get('/health', static fn (): Response => Response::text('x')),
+            Link::post('/users', static fn (): Response => Response::empty()),
+            Link::delete('/users', static fn (): Response => Response::empty()),
         );
 
         try {
@@ -94,7 +94,7 @@ final class RouterTest extends TestCase
     public function test_head_matches_get_templates(): void
     {
         $router = new Router();
-        $router->register(Route::get('/health', static fn (): Response => Response::text('x')));
+        $router->register(Link::get('/health', static fn (): Response => Response::text('x')));
 
         self::assertSame([], $router->match(self::request('/health', 'HEAD'))->params());
     }
@@ -103,9 +103,9 @@ final class RouterTest extends TestCase
     {
         $router = new Router();
         $router->register(
-            Route::get('/health', static fn (): Response => Response::text('x'))->name('health'),
-            Route::get('/users/{id}', static fn (): Response => Response::text('x'))->name('users.show'),
-            Route::get('/posts/{slug?}', static fn (): Response => Response::text('x'))->name('posts.index'),
+            Link::get('/health', static fn (): Response => Response::text('x'))->name('health'),
+            Link::get('/users/{id}', static fn (): Response => Response::text('x'))->name('users.show'),
+            Link::get('/posts/{slug?}', static fn (): Response => Response::text('x'))->name('posts.index'),
         );
 
         self::assertSame('/health', $router->generate('health'));
@@ -120,7 +120,7 @@ final class RouterTest extends TestCase
     public function test_reverse_generation_rejects_missing_and_extra_params(): void
     {
         $router = new Router();
-        $router->register(Route::get('/users/{id}', static fn (): Response => Response::text('x'))->name('users.show'));
+        $router->register(Link::get('/users/{id}', static fn (): Response => Response::text('x'))->name('users.show'));
 
         self::expectException(\InvalidArgumentException::class);
         $router->generate('users.show');
@@ -129,7 +129,7 @@ final class RouterTest extends TestCase
     public function test_reverse_generation_rejects_extra_params(): void
     {
         $router = new Router();
-        $router->register(Route::get('/health', static fn (): Response => Response::text('x'))->name('health'));
+        $router->register(Link::get('/health', static fn (): Response => Response::text('x'))->name('health'));
 
         self::expectException(\InvalidArgumentException::class);
 
@@ -139,7 +139,7 @@ final class RouterTest extends TestCase
     public function test_reverse_generation_rejects_unsafe_values(): void
     {
         $router = new Router();
-        $router->register(Route::get('/users/{id}', static fn (): Response => Response::text('x'))->name('users.show'));
+        $router->register(Link::get('/users/{id}', static fn (): Response => Response::text('x'))->name('users.show'));
 
         self::expectException(\InvalidArgumentException::class);
 
@@ -158,11 +158,11 @@ final class RouterTest extends TestCase
     public function test_duplicate_route_names_rejected(): void
     {
         $router = new Router();
-        $router->register(Route::get('/one', static fn (): Response => Response::text('x'))->name('dup'));
+        $router->register(Link::get('/one', static fn (): Response => Response::text('x'))->name('dup'));
 
         self::expectException(\InvalidArgumentException::class);
 
-        $router->register(Route::get('/two', static fn (): Response => Response::text('x'))->name('dup'));
+        $router->register(Link::get('/two', static fn (): Response => Response::text('x'))->name('dup'));
     }
 
     public function test_path_validation_rejects_bad_templates(): void
@@ -171,7 +171,7 @@ final class RouterTest extends TestCase
 
         foreach (['users', ' /users', '/users/{a-b}', '/users/{x?}/{y}'] as $template) {
             try {
-                Route::get($template, static fn (): Response => Response::text('x'));
+                Link::get($template, static fn (): Response => Response::text('x'));
 
                 self::fail(sprintf('Expected template [%s] to be rejected.', $template));
             } catch (\InvalidArgumentException) {
@@ -186,8 +186,8 @@ final class RouterTest extends TestCase
     {
         $router = new Router();
 
-        $routeOne = Route::get('/users/{first}', static fn (): Response => Response::text('1'));
-        $routeTwo = Route::get('/users/{second:\d+}', static fn (): Response => Response::text('2'));
+        $routeOne = Link::get('/users/{first}', static fn (): Response => Response::text('1'));
+        $routeTwo = Link::get('/users/{second:\d+}', static fn (): Response => Response::text('2'));
 
         $router->register($routeOne, $routeTwo);
 

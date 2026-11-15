@@ -9,6 +9,7 @@ use InvalidArgumentException;
 use Sahil\Http\Exception\MethodNotAllowedHttpException;
 use Sahil\Http\Exception\NotFoundHttpException;
 use Sahil\Http\Middleware\MiddlewareContract;
+use Sahil\Routing\Link;
 
 /**
  * Route table and matching engine.
@@ -23,16 +24,16 @@ use Sahil\Http\Middleware\MiddlewareContract;
  */
 final class Router
 {
-    /** @var list<Route> */
+    /** @var list<Link> */
     private array $routes = [];
 
-    /** @var array<string, Route> routeName → route */
+    /** @var array<string, Link> routeName → route */
     private array $named = [];
 
     /**
-     * @param Route ...$routes register one or more routes
+     * @param Link ...$routes register one or more routes
      */
-    public function register(Route ...$routes): self
+    public function register(Link ...$routes): self
     {
         foreach ($routes as $route) {
             if ($route->routeName() !== null) {
@@ -98,7 +99,7 @@ final class Router
      *
      * @param list<MiddlewareContract|class-string> $groupMiddleware
      */
-    private static function rebase(Route $route, string $prefix, array $groupMiddleware): Route
+    private static function rebase(Link $route, string $prefix, array $groupMiddleware): Link
     {
         if ($route->path() === '/') {
             throw new InvalidArgumentException(
@@ -108,9 +109,14 @@ final class Router
 
         $rebased = new $route($route->methods(), $prefix.$route->path(), $route->handler());
 
-        // Preserve non-path metadata (name) — rebased via visibility escape.
+        // Preserve non-path metadata (name, API version) — rebased via
+        // visibility escape.
         if ($route->routeName() !== null) {
             $rebased = $rebased->name($route->routeName());
+        }
+
+        if ($route->apiVersion() !== null) {
+            $rebased = $rebased->withApiVersion($route->apiVersion());
         }
 
         // Inherit group middleware (outermost) then keep route middleware.
@@ -156,7 +162,7 @@ final class Router
     /**
      * Every registered route, in registration order.
      *
-     * @return list<Route>
+     * @return list<Link>
      */
     public function routes(): array
     {
@@ -168,9 +174,31 @@ final class Router
         return count($this->routes);
     }
 
-    public function routeByName(string $name): ?Route
+    public function routeByName(string $name): ?Link
     {
         return $this->named[$name] ?? null;
+    }
+
+    /**
+     * API versions actually registered in this table, sorted (`v1`, `v2`).
+     * Derived from route metadata — never from configuration.
+     *
+     * @return list<string>
+     */
+    public function versions(): array
+    {
+        $versions = [];
+
+        foreach ($this->routes as $route) {
+            if (($v = $route->apiVersion()) !== null) {
+                $versions[$v] = true;
+            }
+        }
+
+        $versions = array_keys($versions);
+        usort($versions, 'strnatcmp');
+
+        return $versions;
     }
 
     /**
@@ -214,7 +242,10 @@ final class Router
 
                 $used[$parameterName] = $parameterName;
 
-                return $value;
+                // Path-segment unsafe characters still fail above; everything
+                // else (spaces, unicode, delimiters) is percent-encoded so a
+                // generated URL is always valid and unambiguous.
+                return rawurlencode($value);
             },
             $route->path(),
         );
@@ -237,7 +268,7 @@ final class Router
     /**
      * Compile a concrete request path against every registered template.
      *
-     * @return list<array{0: Route, 1: array<string, string>}>
+     * @return list<array{0: Link, 1: array<string, string>}>
      */
     private function compileMatchable(string $path): array
     {

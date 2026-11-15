@@ -230,7 +230,7 @@
 
         <div class="error__actions">
             @yield('actions')
-            <a class="error__button" href="/">Back to home</a>
+            <a class="error__button" href="/">{{ __('errors.back_home') }}</a>
         </div>
 
         @if (debug)
@@ -238,10 +238,18 @@
                 <h2>{{ exception_class }}</h2>
                 <p>{{ exception_message }}</p>
                 <pre>{{ exception_file }}:{{ exception_line }}</pre>
+                @if (exception_previous)
+                    <h2>Caused by</h2>
+                    <p>{{ exception_previous }}</p>
+                @endif
+                @if (exception_trace)
+                    <pre>@foreach (exception_trace as frame){{ frame }}
+@endforeach</pre>
+                @endif
             </section>
         @endif
 
-        <p class="error__hint">If you keep seeing this page, contact the site administrator.</p>
+        <p class="error__hint">{{ __('errors.persistent_error') }}</p>
     </main>
 </body>
 </html>

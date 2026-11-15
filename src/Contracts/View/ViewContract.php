@@ -35,6 +35,15 @@ interface ViewContract
     public function render(string $view, array $data = []): string;
 
     /**
+     * Render a template and return the {@see \Sahil\View\RenderedView}
+     * record — markup plus template/data metadata — so callers such as the
+     * unified renderer can attach the metadata to the response.
+     *
+     * @param array<string, mixed> $data
+     */
+    public function renderView(string $view, array $data = []): \Sahil\View\RenderedView;
+
+    /**
      * Whether a template name resolves to a file.
      *
      * Returns false for a malformed name (including traversal attempts)

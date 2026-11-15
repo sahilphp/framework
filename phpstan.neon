@@ -18,3 +18,14 @@ parameters:
         # generic annotations. Everything that can be a real defect (undefined
         # methods, impossible types, dead code) stays enabled.
         - identifier: missingType.iterableValue
+        # Authorizable and AuthorizesRequests are public-API traits consumed by
+        # application models/controllers (e.g. the starter's User); nothing in
+        # src uses them by design, so "trait used zero times" is a false
+        # positive here rather than dead code.
+        - identifier: trait.unused
+          paths:
+              - src/Auth/Authorizable.php
+              - src/Auth/AuthorizesRequests.php
+              - src/Auth/Tokens/HasApiTokens.php
+              - src/Notifications/Notifiable.php
+              - src/Http/Concerns/RendersPages.php

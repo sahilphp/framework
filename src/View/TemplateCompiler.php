@@ -31,20 +31,22 @@ final class TemplateCompiler
      * Bump when a compiler change can alter emitted PHP; old compiled files
      * then miss the freshness check and are regenerated.
      */
-    private const CACHE_VERSION = '4';
+    private const CACHE_VERSION = '6';
 
     /** Directives the language understands; anything else is literal text. */
     private const DIRECTIVES = [
         'if', 'elseif', 'else', 'endif',
+        'can', 'cannot', 'endcan', 'endcannot',
         'foreach', 'endforeach',
         'section', 'parent', 'endsection',
         'extends', 'yield', 'include', 'json',
         'asset_css', 'asset_js', 'asset_client',
+        'csrf',
         'component',
     ];
 
     /** Directives that take no arguments at all. */
-    private const ARGLESS = ['else', 'endif', 'endforeach', 'parent', 'endsection', 'asset_client'];
+    private const ARGLESS = ['else', 'endif', 'endforeach', 'parent', 'endsection', 'asset_client', 'csrf', 'endcan', 'endcannot'];
 
     /** Constructs that are intentionally unsupported. */
     private const REJECTED = ['php', 'endphp', 'eval'];
@@ -532,6 +534,10 @@ final class TemplateCompiler
             )),
             'else' => $this->insideBlock('if', $line, '@else', "else:\n"),
             'endif' => $this->closeBlock('if', $line, '@endif', "endif;\n"),
+            'can' => $this->openBlock('if', $line, sprintf("if (\$__ctx->can(%s)):\n", $this->expressionList($arguments, '@can', $line))),
+            'cannot' => $this->openBlock('if', $line, sprintf("if (\$__ctx->cannot(%s)):\n", $this->expressionList($arguments, '@cannot', $line))),
+            'endcan' => $this->closeBlock('if', $line, '@endcan', "endif;\n"),
+            'endcannot' => $this->closeBlock('if', $line, '@endcannot', "endif;\n"),
             'foreach' => $this->compileForeach($arguments, $line),
             'endforeach' => $this->compileEndForeach($line),
             'section' => $this->compileSection($arguments, $line),
@@ -544,6 +550,7 @@ final class TemplateCompiler
             'asset_css' => $this->compileAsset('css', $arguments, $line),
             'asset_js' => $this->compileAsset('js', $arguments, $line),
             'asset_client' => "echo \$__ctx->assetClient();\n",
+            'csrf' => "echo \$__ctx->csrfField();\n",
             'component' => $this->compileComponent($arguments, $line),
             default => throw new ViewSyntaxException($this->template, $line, sprintf('Unknown directive @%s.', $name)),
         };
@@ -1223,6 +1230,20 @@ final class TemplateCompiler
     /**
      * @return array{0: string, 1: string} first argument and the remainder
      */
+    /**
+     * Compile a comma-separated argument list into a PHP argument list —
+     * each part an independently compiled expression.
+     */
+    private function expressionList(?string $arguments, string $directive, int $line): string
+    {
+        $required = $this->requireArguments($arguments, $directive, $line);
+
+        return implode(', ', array_map(
+            fn (string $part): string => $this->expression($part, $directive, $line),
+            $this->splitTopLevel($required, ','),
+        ));
+    }
+
     private function splitArguments(string $arguments): array
     {
         $position = $this->findTopLevel($arguments, ',');

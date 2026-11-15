@@ -235,6 +235,15 @@ final class AssetManager implements AssetManagerContract
 
         foreach ($names as $name) {
             if (!isset($map[$name])) {
+                // `@name` denotes an optional extension alias contributed by an
+                // installed package (for example Firefiber's @fiberstyles).
+                // When no provider registered the alias the entry is inert
+                // rather than a render-time error, so shared layouts can
+                // reference it unconditionally.
+                if (str_starts_with($name, '@')) {
+                    continue;
+                }
+
                 throw new AssetException(sprintf(
                     'Unknown %s entry point [%s]. Available: %s.',
                     $type,

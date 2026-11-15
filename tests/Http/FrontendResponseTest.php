@@ -13,7 +13,7 @@ use Sahil\Frontend\FrontendRenderer;
 use Sahil\Http\Kernel;
 use Sahil\Http\Request;
 use Sahil\Http\Response;
-use Sahil\Http\Route;
+use Sahil\Routing\Link;
 use Sahil\Http\Router;
 use Sahil\Tests\Frontend\RecordingFrontendAdapter;
 use Sahil\View\RenderedView;
@@ -37,7 +37,7 @@ final class FrontendResponseTest extends TestCase
     {
         $application = $this->application ??= Application::configure(sys_get_temp_dir());
         $router = new Router();
-        $router->register(Route::get('/', static fn (): Response => $response));
+        $router->register(Link::get('/', static fn (): Response => $response));
 
         return new Kernel($router, new Container(), $application, $renderer);
     }

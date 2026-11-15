@@ -47,6 +47,41 @@ final class ValidationResult
     }
 
     /**
+     * The first error message, in field/rule order, or null.
+     */
+    public function first(): ?string
+    {
+        foreach ($this->errors as $messages) {
+            if ($messages !== []) {
+                return $messages[0];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * All messages for one attribute path.
+     *
+     * @return list<string>
+     */
+    public function errorsFor(string $path): array
+    {
+        return $this->errors[$path] ?? [];
+    }
+
+    /**
+     * Nested, validated-only data — alias of {@see data()} matching the
+     * `Validator::make($data, $rules)->validated()` call shape.
+     *
+     * @return array<string, mixed>
+     */
+    public function validated(): array
+    {
+        return $this->data();
+    }
+
+    /**
      * @return list<string>
      */
     public function errorLines(): array

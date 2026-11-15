@@ -37,11 +37,13 @@ final class StartSession implements MiddlewareContract
         // Start the session from the request
         $this->session->startFromRequest($request);
 
-        // Process the request
-        $response = $next($request);
-
-        // Save the session data
-        $this->session->save();
+        try {
+            $response = $next($request);
+        } finally {
+            // Persist even when the handler throws — flashed data and auth
+            // state written before the failure must not be silently lost.
+            $this->session->save();
+        }
 
         // Apply session cookie to response
         $response = $this->session->applyCookieToResponse($response);

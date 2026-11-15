@@ -6,7 +6,6 @@ namespace Sahil\Tests\Auth;
 
 use PHPUnit\Framework\TestCase;
 use Sahil\Auth\AuthManager;
-use Sahil\Auth\Gate;
 use Sahil\Auth\Password;
 use Sahil\Auth\RateLimiter;
 use Sahil\Auth\SessionAuthState;
@@ -44,7 +43,7 @@ final class AuthorizeMiddlewareTest extends TestCase
 
     public function test_guest_is_rejected_with_401_even_when_the_gate_would_allow(): void
     {
-        $gate = new Gate();
+        $gate = new \Sahil\Auth\BouncerManager();
         $gate->define('publish-post', static fn ($user): bool => true);
 
         [$auth] = $this->makeAuth([], login: false);
@@ -62,7 +61,7 @@ final class AuthorizeMiddlewareTest extends TestCase
 
     public function test_authenticated_user_without_permission_gets_403(): void
     {
-        $gate = new Gate();
+        $gate = new \Sahil\Auth\BouncerManager();
         $gate->define('publish-post', static fn ($user): bool => false);
 
         [$auth] = $this->makeAuth([]);
@@ -87,7 +86,7 @@ final class AuthorizeMiddlewareTest extends TestCase
     public function test_undefined_gate_denies_access(): void
     {
         [$auth] = $this->makeAuth([]);
-        $middleware = new Authorize($auth, new Gate());
+        $middleware = new Authorize($auth, new \Sahil\Auth\BouncerManager());
 
         $response = $middleware->handle(
             Request::fromGlobals(server: ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/posts']),
@@ -100,7 +99,7 @@ final class AuthorizeMiddlewareTest extends TestCase
 
     public function test_user_permission_grants_access_when_the_gate_denies(): void
     {
-        $gate = new Gate();
+        $gate = new \Sahil\Auth\BouncerManager();
         $gate->define('publish-post', static fn ($user): bool => false);
 
         [$auth] = $this->makeAuth(['publish-post']);
@@ -118,7 +117,7 @@ final class AuthorizeMiddlewareTest extends TestCase
 
     public function test_gate_ability_grants_access(): void
     {
-        $gate = new Gate();
+        $gate = new \Sahil\Auth\BouncerManager();
         $gate->define('publish-post', static fn ($user): bool => $user !== null);
 
         [$auth] = $this->makeAuth([]);

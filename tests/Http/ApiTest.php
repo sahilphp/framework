@@ -15,7 +15,7 @@ use Sahil\Http\Pagination\Paginator;
 use Sahil\Http\RateLimit\ArrayStore;
 use Sahil\Http\Request;
 use Sahil\Http\Response;
-use Sahil\Http\Route;
+use Sahil\Routing\Link;
 use Sahil\Http\Router;
 use Sahil\Orm\OrmResult;
 use Sahil\Orm\PageResult;
@@ -35,16 +35,16 @@ final class ApiTest extends TestCase
     private function rootRouter(): array
     {
         return [
-            Route::get('/', static fn (): Response => Response::html('<h1>Home</h1>', 200)),
-            Route::get('/health', static fn (): Response => Response::json(['status' => 'ok'], 200)),
-            Route::post('/parse-json', static fn (Request $request): Response => Response::json($request->json(), 200)),
-            Route::get('/users', static function (Request $request): Response {
+            Link::get('/', static fn (): Response => Response::html('<h1>Home</h1>', 200)),
+            Link::get('/health', static fn (): Response => Response::json(['status' => 'ok'], 200)),
+            Link::post('/parse-json', static fn (Request $request): Response => Response::json($request->json(), 200)),
+            Link::get('/users', static function (Request $request): Response {
                 return Response::json(['count' => 3], 200);
             })->middleware(new Throttle('users', new ArrayStore(60, 60))),
-            Route::post('/login', static function (Request $request): Response {
+            Link::post('/login', static function (Request $request): Response {
                 return Response::json(['token' => 't'], 200);
             })->middleware(new Throttle('login', new ArrayStore(2, 60))),
-            Route::get('/search', static function (Request $request): Response {
+            Link::get('/search', static function (Request $request): Response {
                 $query = $request->queryParameter('q', '');
 
                 return Response::json(['q' => $query], 200);

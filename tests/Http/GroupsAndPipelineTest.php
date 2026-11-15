@@ -12,7 +12,7 @@ use Sahil\Http\Kernel;
 use Sahil\Http\Middleware\MiddlewareContract;
 use Sahil\Http\Request;
 use Sahil\Http\Response;
-use Sahil\Http\Route;
+use Sahil\Routing\Link;
 use Sahil\Http\Router;
 
 /**
@@ -55,11 +55,11 @@ final class GroupsAndPipelineTest extends TestCase
 
         $router->group('/admin', static function (Router $group): void {
             $group->register(
-                Route::get('/dash', static fn (): Response => Response::text('dash')),
-                Route::post('/users', static fn (): Response => Response::text('created')),
+                Link::get('/dash', static fn (): Response => Response::text('dash')),
+                Link::post('/users', static fn (): Response => Response::text('created')),
             );
         });
-        $router->register(Route::get('/top', static fn (): Response => Response::text('top')));
+        $router->register(Link::get('/top', static fn (): Response => Response::text('top')));
 
         $kernel = self::kernelWith($router);
 
@@ -82,9 +82,9 @@ final class GroupsAndPipelineTest extends TestCase
         $router = new Router();
         $router->group('/admin', static function (Router $group) use ($routeMw): void {
             $group->register(
-                Route::get('/dash', static fn (): Response => Response::text('dash'))
+                Link::get('/dash', static fn (): Response => Response::text('dash'))
                     ->middleware($routeMw),
-                Route::get('/plain', static fn (): Response => Response::text('plain')),
+                Link::get('/plain', static fn (): Response => Response::text('plain')),
             );
         }, middleware: $groupMw);
 
@@ -109,7 +109,7 @@ final class GroupsAndPipelineTest extends TestCase
 
         try {
             $router->group('admin', static function (Router $g): void {
-                $g->register(Route::get('/x', static fn (): Response => Response::text('x')));
+                $g->register(Link::get('/x', static fn (): Response => Response::text('x')));
             });
             self::fail('prefix without leading slash must be rejected');
         } catch (\InvalidArgumentException $error) {
@@ -118,7 +118,7 @@ final class GroupsAndPipelineTest extends TestCase
 
         try {
             $router->group('/admin', static function (Router $g): void {
-                $g->register(Route::get('/', static fn (): Response => Response::text('x')));
+                $g->register(Link::get('/', static fn (): Response => Response::text('x')));
             });
             self::fail('bare root inside a group must be rejected');
         } catch (\InvalidArgumentException $error) {
@@ -133,7 +133,7 @@ final class GroupsAndPipelineTest extends TestCase
         $gate = new GroupHeaderTagging($trace, 'gate', shortCircuit: true);
 
         $router = new Router();
-        $router->register(Route::get('/private', static fn (): Response => Response::text('secret'))->middleware($gate));
+        $router->register(Link::get('/private', static fn (): Response => Response::text('secret'))->middleware($gate));
 
         $kernel = self::kernelWith($router);
         $response = $kernel->handle(self::request('/private'));
@@ -151,7 +151,7 @@ final class GroupsAndPipelineTest extends TestCase
         $boomer = new GroupHeaderTagging($trace, 'boomer', throwAt: true);
 
         $router = new Router();
-        $router->register(Route::get('/x', static fn (): Response => Response::text('x'))->middleware($boomer));
+        $router->register(Link::get('/x', static fn (): Response => Response::text('x'))->middleware($boomer));
 
         $seen = null;
         $kernel = self::kernelWith($router, static function (\Throwable $t) use (&$seen): Response {
@@ -185,7 +185,7 @@ final class GroupsAndPipelineTest extends TestCase
         $container->bind('di-tagged', GroupDiMiddleware::class);
 
         $router = new Router();
-        $router->register(Route::get('/tagged', static fn (): Response => Response::text('ok'))->middleware('di-tagged'));
+        $router->register(Link::get('/tagged', static fn (): Response => Response::text('ok'))->middleware('di-tagged'));
 
         $container->instance(Router::class, $router);
 
@@ -207,7 +207,7 @@ final class GroupsAndPipelineTest extends TestCase
         $container->singleton(GroupDiState::class);
 
         $router = new Router();
-        $router->register(Route::get('/orders/{orderId}', [GroupDiController::class, 'show']));
+        $router->register(Link::get('/orders/{orderId}', [GroupDiController::class, 'show']));
 
         $kernel = new Kernel($router, $container, $app);
 
@@ -225,7 +225,7 @@ final class GroupsAndPipelineTest extends TestCase
         $trace = new PipelineTrace();
 
         $router = new Router();
-        $router->register(Route::get('/loop', static fn (): Response => Response::text('ok'))->middleware(new GroupHeaderTagging($trace, 'mw')));
+        $router->register(Link::get('/loop', static fn (): Response => Response::text('ok'))->middleware(new GroupHeaderTagging($trace, 'mw')));
 
         $kernel = self::kernelWith($router);
 
@@ -245,7 +245,7 @@ final class GroupsAndPipelineTest extends TestCase
         ] as [$handler, $label]) {
             try {
                 /** @phpstan-var Closure|array{0: class-string, 1: non-empty-string} $handler */
-                Route::get('/bad', $handler);
+                Link::get('/bad', $handler);
 
                 self::fail(sprintf('Expected handler [%s] to be rejected.', $label));
             } catch (\InvalidArgumentException $e) {

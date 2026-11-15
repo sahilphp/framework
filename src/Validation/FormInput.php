@@ -44,6 +44,12 @@ final class FormInput
             $payload[(string) $key] = $value;
         }
 
+        // Multipart uploads join the input under their field names so
+        // `'avatar' => 'required|file|mimes:jpg'` just works.
+        foreach ($request->files() as $key => $file) {
+            $payload[(string) $key] = $file;
+        }
+
         return $payload;
     }
 }

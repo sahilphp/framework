@@ -15,6 +15,11 @@ namespace Sahil\Auth;
  * - Prevents user enumeration by returning generic failures
  * - Exponential backoff for repeated failures
  * - Configurable max attempts and decay time
+ *
+ * @deprecated Use {@see \Sahil\RateLimit\RateLimiter} — shared-store
+ *             named limits — for all new code. This in-memory tracker
+ *             remains for backward compatibility only; its counters are
+ *             process-local and reset per instance.
  */
 final class RateLimiter
 {

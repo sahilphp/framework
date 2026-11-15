@@ -24,10 +24,13 @@ use Throwable;
  * contract:
  *
  *     {"error":"http_error","status":404}      404 from an HttpException
- *     {"error":"server_error"}                 500
+ *     {"error":"server_error","message":"…"}   500
  *
- * Stack traces and file paths never reach the client; the exception message is
- * added only in debug mode.
+ * In debug mode (never default) the JSON contract switches to a structured
+ * diagnostic payload — `{"error":{"type","message","file","line","status",
+ * "previous","trace"}}` — and the HTML page shows the same details. In
+ * production, diagnostics stay server-side: the log records everything, the
+ * client only ever sees the generic contract.
  *
  * ### Where the pages come from
  *
@@ -111,7 +114,7 @@ final class ErrorRenderer
      */
     public function respond(Throwable $throwable, ?Request $request = null, bool $debug = false): Response
     {
-        $status = $throwable instanceof HttpException ? $throwable->statusCode() : 500;
+        $status = ExceptionDiagnostics::status($throwable);
         $headers = $throwable instanceof HttpException ? $throwable->getHeaders() : [];
 
         $response = $request !== null && !self::expectsJson($request)
@@ -144,21 +147,20 @@ final class ErrorRenderer
 
     private static function json(Throwable $throwable, int $status, bool $debug): Response
     {
-        if ($throwable instanceof HttpException) {
-            $payload = $debug && $throwable->getMessage() !== ''
-                ? ['error' => 'http_error', 'status' => $status, 'message' => $throwable->getMessage()]
-                : ['error' => 'http_error', 'status' => $status];
-
-            return Response::json($payload, $status);
+        if ($debug) {
+            // Structured diagnostics: the same information the log records —
+            // type, message, location, status, cause chain and stack trace.
+            return Response::json(['error' => ExceptionDiagnostics::payload($throwable)], $status);
         }
 
-        return Response::json($debug
-            ? [
-                'error' => 'server_error',
-                'message' => $throwable->getMessage(),
-                'exception' => $throwable::class,
-            ]
-            : ['error' => 'server_error'], 500);
+        if ($throwable instanceof HttpException) {
+            return Response::json(['error' => 'http_error', 'status' => $status], $status);
+        }
+
+        return Response::json(
+            ['error' => 'server_error', 'message' => self::text('errors.server_error', 'An unexpected server error occurred.')],
+            500,
+        );
     }
 
     private function html(Throwable $throwable, int $status, bool $debug): Response
@@ -184,6 +186,8 @@ final class ErrorRenderer
             'status' => $status,
             'reason' => Status::reason($status),
             'debug' => $debug,
+            'exception_previous' => '',
+            'exception_trace' => [],
         ];
 
         if ($debug) {
@@ -191,6 +195,8 @@ final class ErrorRenderer
             $data['exception_message'] = $throwable->getMessage();
             $data['exception_file'] = $throwable->getFile();
             $data['exception_line'] = $throwable->getLine();
+            $data['exception_previous'] = ExceptionDiagnostics::previousSummary($throwable) ?? '';
+            $data['exception_trace'] = ExceptionDiagnostics::trace($throwable);
         }
 
         foreach (self::candidates($status) as $view) {
@@ -233,15 +239,35 @@ final class ErrorRenderer
     private static function fallbackPage(int $status, Throwable $throwable, bool $debug): string
     {
         $reason = htmlspecialchars(Status::reason($status), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $escape = static fn (string $value): string
+            => htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $details = '';
 
         if ($debug) {
             $details = sprintf(
-                '<p class="details"><strong>%s</strong><br>%s</p>',
-                htmlspecialchars($throwable::class, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
-                htmlspecialchars($throwable->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+                '<div class="details">'
+                .'<h2>%s</h2>'
+                .'<p>%s</p>'
+                .'<p class="location">%s:%d</p>'
+                .'%s'
+                .'%s'
+                .'</div>',
+                $escape($throwable::class),
+                $escape($throwable->getMessage()),
+                $escape($throwable->getFile()),
+                $throwable->getLine(),
+                ($previous = ExceptionDiagnostics::previousSummary($throwable)) !== null
+                    ? '<p class="cause"><strong>Caused by:</strong> '.$escape($previous).'</p>'
+                    : '',
+                ($trace = ExceptionDiagnostics::trace($throwable)) !== []
+                    ? '<pre class="trace">'.$escape(implode("\n", $trace)).'</pre>'
+                    : '',
             );
         }
+
+        $title = $escape(self::text('errors.server_error_title', 'Something went wrong'));
+        $tryAgain = $escape(self::text('errors.try_again', 'Please try again. If the problem persists, contact the site administrator.'));
+        $backHome = $escape(self::text('errors.back_home', 'Back to home'));
 
         return <<<HTML
             <!doctype html>
@@ -264,6 +290,13 @@ final class ErrorRenderer
                     p { margin: 0 0 12px; color: #5b6675; line-height: 1.6; }
                     .details { padding: 14px 16px; margin-top: 20px; border-radius: 12px; background: #f5f7fb;
                                border: 1px solid #e3e8ef; color: #101828; font-size: 14px; overflow-wrap: anywhere; }
+                    .details h2 { margin: 0 0 6px; font-size: 13px; letter-spacing: .05em; text-transform: uppercase;
+                                  color: #5b6675; }
+                    .details p { margin: 0 0 8px; color: #101828; }
+                    .details .location, .details .cause { color: #5b6675; font-size: 13px; }
+                    .details .trace { margin: 10px 0 0; max-height: 320px; overflow: auto; font-size: 12.5px;
+                                      line-height: 1.6; white-space: pre-wrap; color: #5b6675;
+                                      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
                     a { display: inline-block; margin-top: 12px; padding: 11px 18px; border-radius: 10px;
                         background: #0b6fe8; color: #fff; text-decoration: none; font-weight: 600; }
                     @media (prefers-color-scheme: dark) {
@@ -271,6 +304,9 @@ final class ErrorRenderer
                         main { background: #141a2c; border-color: #242d44; }
                         p { color: #9aa7bd; }
                         .details { background: #1b2540; border-color: #242d44; color: #eef2f9; }
+                        .details h2 { color: #9aa7bd; }
+                        .details p { color: #eef2f9; }
+                        .details .location, .details .cause, .details .trace { color: #9aa7bd; }
                         a { background: #4c9bff; color: #08111f; }
                     }
                 </style>
@@ -278,14 +314,32 @@ final class ErrorRenderer
             <body>
                 <main>
                     <p class="code">{$status} · {$reason}</p>
-                    <h1>Something went wrong</h1>
-                    <p>Please try again. If the problem persists, contact the site administrator.</p>
+                    <h1>{$title}</h1>
+                    <p>{$tryAgain}</p>
                     {$details}
-                    <a href="/">Back to home</a>
+                    <a href="/">{$backHome}</a>
                 </main>
             </body>
             </html>
             HTML;
+    }
+
+    /**
+     * User-facing copy goes through the application's translator so error
+     * responses follow the active locale. The lookup is deliberately soft:
+     * without a booted application or a resolvable translator — exactly the
+     * situations this renderer exists for — the English default is used and
+     * nothing can fail here.
+     */
+    private static function text(string $key, string $default): string
+    {
+        try {
+            $translated = translator()->get($key);
+
+            return $translated === $key ? $default : $translated;
+        } catch (Throwable) {
+            return $default;
+        }
     }
 
     private static function cachePath(ApplicationContract $application): string

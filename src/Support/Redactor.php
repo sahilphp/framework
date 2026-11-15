@@ -18,7 +18,7 @@ namespace Sahil\Support;
  */
 final class Redactor
 {
-    private const SENSITIVE = '/(?:password|passwd|secret|token|credential|api.?key|private|signing|encryption)/i';
+    private const SENSITIVE = '/(?:password|passwd|secret|token|credential|api.?key|private|signing|encryption|cookie|authorization|bearer|session.?id)/i';
 
     private const REDACTED = '[redacted]';
 

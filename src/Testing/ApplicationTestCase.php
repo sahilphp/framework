@@ -366,7 +366,13 @@ abstract class ApplicationTestCase extends TestCase
             try {
                 /** @var SessionContract $session */
                 $session = $this->container()->make(SessionContract::class);
-                $headers['X-CSRF-TOKEN'] = $session->token();
+                $token = $session->token();
+                // Persist before the request and pass the session cookie the
+                // way a browser would: the session re-initializes per request,
+                // so the token must be readable through the driver.
+                $session->save();
+                $cookies[$session->getName()] = $session->id();
+                $headers['X-CSRF-TOKEN'] = $token;
             } catch (Throwable) {
                 // No session service in this application: nothing to inject.
             }

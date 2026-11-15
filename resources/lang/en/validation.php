@@ -1,0 +1,71 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Validation messages in English. `:attribute` is the validated field;
+ * other placeholders (`:min`, `:max`, `:values`) come from the rule itself.
+ */
+return [
+    'required' => 'The :attribute field is required.',
+    'string' => 'The :attribute field must be a string.',
+    'control_characters' => 'The :attribute field contains forbidden control characters.',
+    'array' => 'The :attribute field must be an array.',
+    'integer' => 'The :attribute field must be an integer.',
+    'numeric' => 'The :attribute field must be a number.',
+    'boolean' => 'The :attribute field must be a boolean.',
+    'email' => 'The :attribute field must be a valid email address.',
+    'url' => 'The :attribute field must be a valid URL.',
+    'min' => [
+        'numeric' => 'The :attribute field must be greater than or equal to :min.',
+        'characters' => 'The :attribute field must have at least :min characters.',
+        'items' => 'The :attribute field must have at least :min items.',
+    ],
+    'max' => [
+        'numeric' => 'The :attribute field must be less than or equal to :max.',
+        'characters' => 'The :attribute field must have at most :max characters.',
+        'items' => 'The :attribute field must have at most :max items.',
+    ],
+    'between' => 'The :attribute field must be between :min and :max.',
+    'length' => [
+        'min' => 'The :attribute field must have at least :min characters.',
+        'max' => 'The :attribute field must have at most :max characters.',
+    ],
+    'in' => 'The :attribute field must be one of: :values.',
+    'notIn' => 'The :attribute field must not be one of: :values.',
+    'regex' => 'The :attribute field format is not allowed.',
+    'confirmed' => 'The :attribute field confirmation does not match.',
+    'same' => 'The :attribute field must match :other.',
+    'different' => 'The :attribute field must be different from :other.',
+    'accepted' => 'The :attribute field must be accepted.',
+    'date' => 'The :attribute field must be a valid date.',
+    'before' => 'The :attribute field must be a date before :date.',
+    'after' => 'The :attribute field must be a date after :date.',
+    'password' => 'The :attribute field must have at least :min characters, including a letter and a number.',
+    'present' => 'The :attribute field must be present.',
+    'filled' => 'The :attribute field must have a value.',
+    'missing' => 'The :attribute field must not be present.',
+    'ip' => 'The :attribute field must be a valid IP address.',
+    'uuid' => 'The :attribute field must be a valid UUID.',
+    'json' => 'The :attribute field must be valid JSON.',
+    'alpha' => 'The :attribute field may only contain letters.',
+    'alpha_num' => 'The :attribute field may only contain letters and numbers.',
+    'alpha_dash' => 'The :attribute field may only contain letters, numbers, dashes and underscores.',
+    'size' => 'The :attribute field must have a size of :size.',
+    'digits' => 'The :attribute field must be a :digits-digit number.',
+    'digits_between' => 'The :attribute field must be between :min and :max digits.',
+    'date_format' => 'The :attribute field must match the date format :format.',
+    'before_or_equal' => 'The :attribute field must be a date before or equal to :date.',
+    'after_or_equal' => 'The :attribute field must be a date after or equal to :date.',
+    'required_if' => 'The :attribute field is required.',
+    'required_unless' => 'The :attribute field is required.',
+    'required_with' => 'The :attribute field is required.',
+    'required_without' => 'The :attribute field is required.',
+    'file' => 'The :attribute field must be a valid uploaded file.',
+    'image' => 'The :attribute field must be an image.',
+    'extensions' => 'The :attribute field must have one of these extensions: :values.',
+    'mimes' => 'The :attribute field must be a file of type: :values.',
+    'mimetypes' => 'The :attribute field must be a file of type: :values.',
+    'exists' => 'The selected :attribute is invalid.',
+    'unique' => 'The :attribute field has already been taken.',
+];

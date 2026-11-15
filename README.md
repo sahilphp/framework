@@ -412,6 +412,70 @@ Guarantees:
 - HEAD requests emit the full header set (Content-Length included) with
   no body bytes.
 
+
+## Rendering pages from controllers
+
+The unified rendering API removes the `ViewContract`-injection boilerplate.
+Core owns orchestration — resolving the environment adapter, the page
+identifier, data and status — while each UI kit ships only its adapter, so
+the core never depends on Vue/React/Svelte/Firefiber.
+
+```php
+final class SchoolController
+{
+    use \Sahil\Http\Concerns\RendersPages;
+
+    public function index(Request $request): Response
+    {
+        return $this->html('pages.school.index', [
+            'message' => 'SchoolController@index',
+        ]);
+    }
+}
+```
+
+Helpers (all optional data, optional status):
+
+```php
+$this->html($page, $data = [], $status = 200);    // native Sahil Engine
+$this->vue($page, $data, $status);                // kit adapters
+$this->react($page, $data, $status);
+$this->svelte($page, $data, $status);
+$this->fire($page, $data, $status);               // canonical Firefiber env
+$this->renderTo('my-env', $page, $data, $status); // custom environments
+```
+
+Static factories work the same way — an **array** second argument means
+page data (an `int` keeps its original status-code meaning):
+
+```php
+return Response::html('pages.school.index', ['message' => 'Hi']);
+return Response::vue('pages.school.index', $props, 201);
+return Response::fire('pages.dashboard');   // firefiber apps
+```
+
+Architecture:
+
+- `Sahil\Rendering\RenderManager` routes `(environment, page, data, status)`
+  to a `Sahil\Contracts\Rendering\RenderAdapterContract`. Missing
+  environments throw with the registered list; invalid statuses throw —
+  no silent empty responses.
+- `Sahil\Rendering\Render` is the static entry point (same convention
+  as `Bouncer`/`Notify`): it resolves the container-bound manager, or a
+  default one carrying just the native `HtmlAdapter`
+  (`ViewContract::renderView()`, which keeps `RenderedView` metadata on
+  the response for downstream adapters).
+- Each kit binds `RenderManager` in its `FrontendServiceProvider` —
+  `vue`/`react`/`svelte` adapters wrap the kit's existing renderer;
+  Firefiber's provider registers `fire`, delegating to
+  `ComponentRendererContract`. Nothing request-scoped is cached, so
+  consecutive worker requests cannot leak state.
+- Rendering exceptions flow through the normal exception pipeline.
+
+Backward compatible: `Response::html($markup, $status)`,
+`Response::vue($renderedView)` (deferred `FrontendRenderer` path),
+`ViewContract::render()` and manual responses all behave as before.
+
 ## Configuration, environment & error handling (Phase 5)
 
 **Dot-notation config** (`Sahil\Config\Repository`): `get/set/has/merge`
@@ -486,7 +550,9 @@ and its `bootstrap/` manifest; command classes are loaded from this package.
 
 ```bash
 php sahil unda:controller UserController
+php sahil unda:controller UserController -r      # resourceful controller
 php sahil unda:model Billing/Invoice --migration
+php sahil unda:model User -cmr                  # model + migration + resourceful controller
 php sahil unda:migration create_posts_table
 php sahil unda:middleware Authenticate
 php sahil unda:policy UserPolicy
@@ -495,6 +561,13 @@ php sahil unda:command SendInvoice
 php sahil unda:job ProcessPayment
 php sahil unda:seeder UserSeeder
 ```
+
+`unda:model` composes related files in one run: `-m`/`--migration` adds the
+`create_<table>_table` migration, `-c`/`--controller` adds `<Name>Controller`
+and `-r`/`--resource` makes that controller resourceful (`index`, `create`,
+`store`, `show`, `edit`, `update`, `destroy`). Shorthand letters combine
+(`-cm`, `-cmr`) and every destination is preflighted before anything is
+written, so a conflict never leaves a partial set behind.
 
 Application-specific commands are opt-in through `bootstrap/commands.php`
 (a list of command class names), never by copying framework command files.
@@ -508,14 +581,46 @@ and exception→response rendering — inside a single request scope
 (`scoped()` services resolve during the request and are dropped when the
 scope ends, even on error paths).
 
-**Routes** are declared in `routes/web.php` as an array of `Sahil\Http\Route`
-objects, registered by `App\Providers\WebRoutesProvider`:
+**Routes** are declared in `routes/web.php` as an array of `Sahil\Routing\Link`
+definitions, registered by `App\Providers\WebRoutesProvider`:
 
 ```php
-Route::get('/users/{id}', [UserController::class, 'show'])->name('users.show');
-Route::get('/posts/{slug?}', fn (Request $r) => Response::json([...]));
-Route::post('/files/{path:\d+}', ...)->middleware(ThrottleMiddleware::class);
+use Sahil\Routing\Link;
+
+Link::get('/users/{id}', [UserController::class, 'show'])->name('users.show');
+Link::get('/posts/{slug?}', fn (Request $r) => Response::json([...]));
+Link::post('/files/{path:\d+}', ...)->middleware(ThrottleMiddleware::class);
 ```
+
+`Link` exposes one static factory per HTTP verb — `get`, `post`, `put`,
+`patch`, `delete`, `options` — plus `any($path, $handler)` for every
+supported verb and `match(array $methods, $path, $handler)` for an explicit
+set. Each factory returns an immutable link definition; `->name(...)` and
+`->middleware(...)` return clones, so a link cannot be mutated after it has
+been registered or shared.
+
+For groups, `Link::prefix('/admin')` returns a fluent `LinkGroup`:
+
+```php
+return [
+    Link::get('/', $home),
+    ...Link::prefix('/admin')
+        ->middleware(Authenticate::class)
+        ->group(fn () => [
+            Link::get('/dashboard', $dashboard),
+            Link::get('/users', $users),
+        ]),
+];
+```
+
+`Link::group($prefix, $definition, $middleware)` is the equivalent one-call
+form. Both delegate to the real `Router::group()` rebasing machinery —
+prefixes and inherited middleware behave exactly as in `Router::group()`.
+
+The earlier `Sahil\Http\Route` class remains as a deprecated compatibility
+alias that extends `Link`; both names produce definitions consumed by the
+same `Router`, share one route registry, and behave identically. New code
+should use `Link`.
 
 - Path syntax: static segments, `{param}` (one segment, URL-decoded),
   `{param:pattern}` (PCRE fragment, validated at registration) and a
@@ -544,8 +649,11 @@ Nested bare-root routes (`/` inside a group) are rejected loudly.
 **Middleware** implements
 `Sahil\Http\Middleware\MiddlewareContract::handle(Request, Closure $next):
 Response`. Global middleware is attached with `Kernel::using(...)`
-(outermost first); per-route middleware with `Route::middleware()`;
-group middleware with `Router::group(..., middleware: ...)`. Middleware
+(outermost first) and wraps the whole dispatch — it runs before route
+matching, so concerns like sessions, CSRF and locale selection also apply
+to 404/405 responses for unmatched paths. Per-route middleware attaches
+with `Link::middleware()`; group middleware with
+`Router::group(..., middleware: ...)` or `Link::prefix(...)->middleware(...)`. Middleware
 may short-circuit by returning a response without calling `$next()` — the
 rest of the pipeline (and dispatch) is then skipped. Middleware executed
 in registration order and unwinds in reverse order after the handler
@@ -606,14 +714,58 @@ if ($result->passes()) {
 }
 ```
 
-Rule catalog (string descriptors, `|`-separated): `required`, `nullable`,
-`string`, `integer`, `numeric`, `boolean`, `email`, `url`, `array`,
-`min:N`, `max:N`, `length:min,max` (mb-aware strings and array counts),
-`in:a,b`, `notIn:a,b`, `regex:/.../` (delimited PCRE, `e` modifier
-forbidden), `allowsControlChars` (opt-out of control-character
-rejection). Custom rules are `RuleContract` implementations or closures
-`fn(string $field, mixed $value): ?string`. Custom message keys:
-`field.rule` → `field` → bare `rule`.
+Rule catalog (string descriptors, `|`-separated):
+
+- **Presence:** `required`, `nullable`, `sometimes` (absent → skip chain),
+  `present` (key must exist, null OK), `filled` (when present, non-empty),
+  `missing` (key must be absent), `required_if:f,v`, `required_unless:f,v`,
+  `required_with:a,b`, `required_without:a,b`.
+- **Types & formats:** `string`, `integer`, `numeric`, `boolean`, `array`,
+  `email`, `url`, `ip`, `uuid`, `json`, `alpha`, `alpha_num`, `alpha_dash`,
+  `accepted`.
+- **Size & comparison:** `min:N`, `max:N`, `between:a,b`, `size:N`,
+  `length:min,max`, `digits:N`, `digits_between:a,b`, `in:a,b`, `notIn:a,b`,
+  `same:field`, `different:field`, `confirmed[:field]` — size is numeric
+  value / string length / array count / file bytes, per value type.
+- **Dates:** `date`, `date_format:fmt` (strict — no trailing data),
+  `before:x`, `after:x`, `before_or_equal:x`, `after_or_equal:x`
+  (`x` is any `strtotime` expression).
+- **Files:** `file`, `image`, `mimes:jpg,pdf`, `mimetypes:text/plain`,
+  `extensions:txt,csv` — see uploads below.
+- **Pattern:** `regex:/.../` (delimited PCRE, `e` modifier forbidden; a
+  `|` inside the pattern is written `\|`). `allowsControlChars` opts out
+  of control-character rejection.
+- **Database:** `new Unique($connection, 'users', 'email')` with
+  `->ignore($id)` for updates; `new Exists($connection, 'users', 'id')`
+  with `->where('active', 1)` constraints. Both whitelist identifiers and
+  bind values — no SQL injection surface.
+- **Reusable rules:** `new Password()` presets (`password` descriptor),
+  `RuleContract` implementations or closures
+  `fn(string $field, mixed $value): ?string`. Custom message keys:
+  `field.rule` → `field` → bare `rule`.
+
+`Validator::make($data, $rules, $messages?)` is the one-call entry:
+`->fails()`, `->errors()`, `->validated()`, `->first()`,
+`->errorsFor('email')`. Wildcard expansion is bounded (10 000 concrete
+paths) — pathological input shapes fail loudly instead of hanging.
+
+**Uploads:** `Request::files()` exposes `$_FILES` as
+`Sahil\Http\UploadedFile` objects (plus `photos[]` lists), and
+`$request->validate()` sees them under their field names — file fields
+validate like any other input:
+
+```php
+$data = $request->validate([
+    'avatar' => 'required|file|image|max:2097152',   // bytes
+    'doc'    => 'nullable|file|mimes:pdf,txt',
+]);
+```
+
+`mime()` sniffs real contents via finfo — a script renamed `x.png` fails
+`image`/`mimes` — the client-supplied name/type are advisory only.
+Validation never stores files; persistence stays with `Kapu::store()` /
+`StorageManager`. `form()->validate()` covers string fields only;
+use `Request::validate()` for forms that carry uploads.
 
 Contract highlights:
 
@@ -652,6 +804,886 @@ Contract highlights:
   collisions; malformed JSON keeps the request object's
   `BadRequestHttpException`). The payload is RAW input — only
   `result->data()` may be trusted downstream.
+
+### Request validation
+
+Controllers validate input where they receive it and get **only the
+validated fields** back; failures are handled by the kernel, not by
+`if ($result->fails())` boilerplate:
+
+```php
+public function register(Request $request): Response
+{
+    $data = $request->form()->validate([
+        'name'     => 'required|string|min:2|max:80',
+        'email'    => 'required|email|max:190',
+        'password' => 'required|string|password|confirmed',
+    ], bag: 'register');
+
+    // ... use $data — nothing else from the body is present.
+}
+```
+
+- `$request->validate($rules)` validates query + body merged (body wins);
+  `$request->form()->validate($rules)` validates the parsed body only.
+  `form()` returns a `Sahil\Http\Form` value object that keeps the
+  array-like surface (`$form['email']`, `count()`, iteration).
+- Signature: `validate(array $rules, array $messages = [], ?string $bag = null,
+  ?string $normalize = null, ?string $redirectTo = null)`.
+- On failure a `ValidationException` carries the `ValidationResult`, the
+  optional bag name, the original input and the redirect target; the
+  kernel turns it into a `303` redirect (Referer path → `redirectTo` →
+  current path) with the error bag and safe old input flashed, or a
+  `422` JSON `{"message", "errors"}` for `Accept: application/json`.
+- Old input never includes fields whose key matches
+  `password|token|secret|csrf`, and nested structures must be
+  scalar-only to be flashed at all. Reach it in templates with `old.x`
+  / `old('x')`.
+- Business rules that validation cannot express reuse the same path:
+  `throw ValidationException::withMessages(['email' => ['Taken.']],
+  input: $request->form()->all(), bag: 'register');`
+
+Additional rules on top of the base catalog: `between:min,max`,
+`confirmed` (`password` ↔ `password_confirmation`, or `confirmed:field`
+for the explicitly named comparison), `same:field`, `different:field`,
+`sometimes` (absent field skips the whole chain), `accepted`,
+`date`, `before:date`, `after:date`, `password` (configurable via
+`Password` rule: min/max length, letters, numbers, mixed case,
+symbols — `password` bare = letter + number, min 8), `not_in:a,b`,
+and `unique:table,column` backed by the framework `Connection`.
+
+### Error bags
+
+Flashed errors arrive in views as `errors` (a `ViewErrorBag`). The
+default bag answers `errors.name` / `errors.first('name')` /
+`errors.any()`; named bags keep several forms on one page apart:
+`error('email', 'register')`. Bags live exactly one request (flash
+lifecycle) and are isolated per session.
+
+### CSRF
+
+`VerifyCsrfToken` protects every unsafe method (`POST`, `PUT`, `PATCH`,
+`DELETE`) for form `_token`, `X-CSRF-TOKEN` or `X-XSRF-TOKEN` headers.
+
+- Templates emit the field with `@csrf` (or `{{ csrf_field() }}`);
+  `{{ csrf_token() }}` and the shared `csrf_token` variable expose the
+  raw value. Nothing is passed from controllers — `ViewEngine` shares
+  it automatically when a session-backed request is active.
+- One token is issued per request render: every form on a page shares
+  it. `VerifyCsrfToken` rotates on each accepted unsafe request, and a
+  bounded history (8 tokens) keeps previously rendered forms, extra
+  tabs and back-navigation submissions valid.
+- Programmatic access: `csrf_token()` and
+  `$session->issueToken()` / `regenerateToken()`.
+- Sessions re-initialize per `Request` object, so long-running workers
+  cannot leak flash, old input or token state between clients.
+
+### Named links
+
+`Router::generate($name, $params)` stays the authoritative URL builder;
+the helpers are thin reach-throughs:
+
+```php
+\Sahil\link('users.show', ['id' => 42]);  // "/users/42"
+```
+
+```html
+<a href="{{ link('register') }}">Create account</a>
+<form method="POST" action="{{ link('login') }}">@csrf …</form>
+```
+
+Parameter values are validated as path segments (no `/`, `?`, `#`)
+then `rawurlencode`d; unknown names, missing required parameters and
+extra parameters all raise descriptive exceptions. (PHP reserves the
+global `link()`, so the PHP helper is namespaced; `use function
+Sahil\link;` restores the short name, and `{{ link() }}` needs none.)
+
+## API resources — `Sahil\Http\Resources`
+
+API resources are the explicit boundary between application data and the
+wire: **only** what `toArray()` names is ever serialized. Source
+properties are read one at a time — never enumerated — so passwords,
+tokens and internal fields cannot leak by accident.
+
+```php
+use Sahil\Http\Resources\Resource;
+
+final class UserResource extends Resource
+{
+    public function toArray(): array
+    {
+        return [
+            'id'    => $this->id,
+            'name'  => $this->name,
+            // key omitted entirely when the condition fails
+            'email' => $this->when($this->emailVisible ?? false, $this->email),
+            'posts' => PostResource::collection($this->posts ?? []),
+        ];
+    }
+}
+```
+
+### Returning resources from controllers
+
+Controllers may return a `Resource` / `ResourceCollection` **directly** —
+the kernel renders it through the normal response path as
+`application/json`. `->toResponse($status, $headers)` is available for
+explicit control:
+
+```php
+public function show(Request $request, array $params): UserResource
+{
+    return UserResource::make($user);              // → 200 JSON
+    // or: ->toResponse(201, ['X-Tag' => 'users']);
+}
+```
+
+Sources can be arrays, `ArrayAccess`, plain objects (public properties)
+or ORM models (via `getAttribute()`). Missing attributes read as `null`;
+a `null` source serializes to JSON `null` — that is how null
+relationships read. `DateTimeInterface` values render as ISO-8601.
+
+### Conditionals — `when`, `whenNotNull`, `whenLoaded`
+
+`null` is a legitimate API value and is never used as an "omit" marker.
+The helpers return a `MissingValue` sentinel instead, and the serializer
+drops the key:
+
+```php
+'email'   => $this->when($user->isAdmin(), $this->email),
+'nickname'=> $this->whenNotNull($this->nickname),
+'author'  => $this->whenLoaded($this->author, UserResource::class),
+```
+
+`whenLoaded()` wraps a has-many (list or Traversable) as a collection
+and anything else as a single resource — an absent relation omits the
+key rather than emitting `null`.
+
+### Collections & pagination
+
+`UserResource::collection($users)` accepts any iterable (arrays,
+`Traversable`, `OrmResult`) and preserves order. Meta attaches an
+envelope — the body becomes `{data: ..., ...meta}` — while a bare
+resource/collection returns its representation unwrapped:
+
+```php
+return UserResource::collection($users)
+    ->paginate($pageResult)              // ORM PageResult or Paginator
+    ->withMeta(['links' => [...]])
+    ->toResponse();
+```
+
+`paginate()` reuses the existing `Paginator` metadata (`total`,
+`perPage`, `currentPage`, `lastPage`, `hasMorePages`, `nextPageUrl`,
+`prevPageUrl`) under `meta` — no extra count queries are run. Error
+responses (validation 422, 404, 403) keep their existing shapes; success
+envelopes never collide with them.
+
+### Serialization semantics
+
+`Resource`/`ResourceCollection` implement `JsonSerializable` and can be
+handed straight to `Response::json()`, `json_encode()` or
+`->toResponse()`. Encoding uses `JSON_THROW_ON_ERROR` — malformed UTF-8
+fails loudly, never silently empty. Serialization is stateless: sources
+are never mutated, instances can serialize repeatedly, and no shared
+state lives between requests.
+
+## API listing queries — `Sahil\Http\ApiQuery`
+
+Allowlisted filter/sort/search + bounded pagination over `ModelQuery`
+and `PageResult` — no client parameter ever becomes SQL.
+
+```php
+public function index(Request $request): ResourceCollection
+{
+    $query = ApiQuery::from($request)
+        ->allowedFilters(['status', 'age' => ['gte', 'lte']])
+        ->filter('older_than', fn ($q, $v) => $q->where('age', '>', (int) $v))
+        ->searchable(['name', 'email'])
+        ->allowedSorts(['name', 'created_at'])
+        ->defaultSort('-created_at')
+        ->uniqueBy('id')                       // stable pagination tie-breaker
+        ->allowedFields(['id', 'name'])
+        ->perPage(15, 100);
+
+    $page = $query->paginate(User::query()->where('tenant_id', $tenant));
+
+    return UserResource::collection($page->result)
+        ->only($query->selectedFields())       // ?fields=id,name
+        ->paginate($page);                     // {data, meta}
+}
+```
+
+```http
+GET /api/users?filter[status]=active&filter[age][gte]=18&search=asha&sort=-created_at&page=2&perPage=25
+```
+
+**Pagination** — `page`/`perPage` validated as positive integers,
+`perPage` capped by the configured max; errors → `ValidationException`
+(422 JSON / redirect per Accept). Reuses `PageResult` + `Paginator`
+metadata.
+
+**Filters** — `filter[name]=v` (equality) or `filter[name][op]=v` with
+ops `eq ne in not_in gt lt gte lte null not_null like`. Every name and
+operator must be allowlisted; unknowns → 422. Values are bound
+parameters; `in` lists cap at 25, `like` escapes `%`/`_`/`\`.
+Custom `filter()` callbacks receive the raw scalar and return wheres.
+
+**Sorts** — `?sort=name`, `-col` desc, comma for multiple; `defaultSort`
+applies when none requested. `uniqueBy()` appends a deterministic
+tie-breaker when the effective sort doesn't include it — required for
+stable offset pages on non-unique columns (works on non-`id` pk's too).
+
+**Search** — `?search=` does literal-substring `OR`-grouped `LIKE` over
+`searchable()` columns only (wildcards escaped, length-bounded,
+driver-quoted identifiers).
+
+**Fields** — `?fields=` is intersected with `allowedFields()` and applied
+via `Resource::only()`/`ResourceCollection::only()` — it only narrows
+`toArray()` output, never widens it; `only(null)` restores full shape.
+Opt-in per endpoint.
+
+**Composition** — `paginate()`/`apply()` extend your query: app wheres,
+joins and bindings stay intact; `count()` runs without ORDER/LIMIT.
+`ApiQuery` objects are immutable — every `->with*` clones.
+
+**Non-ORM apps** — `$query->page()` returns validated `[page, perPage]`
+for hand-rolled listings; `paginate()` itself is `ModelQuery`-bound.
+
+## API versioning — `Link::version()`
+
+URL-prefix versioning built on the same `Link` machinery — no second
+router, no header negotiation. A version block prefixes `/vN` and tags
+every link with normalized version metadata that survives prefix/group
+rebasing:
+
+```php
+return [
+    ...Link::prefix('/api')->group(fn () => [
+        ...Link::version('v1', fn () => [
+            Link::get('/users', [UserController::class, 'index'])
+                ->name('api.v1.users'),
+        ]),
+        ...Link::version('v2', fn () => [
+            Link::get('/users', [Api\V2\UserController::class, 'index'])
+                ->name('api.v2.users'),
+        ]),
+    ]),
+];
+// → GET /api/v1/users (v1), GET /api/v2/users (v2)
+```
+
+- `Version::normalize()` accepts `v1`, `V2`, `1`, `v2.5` → `vN`;
+  anything else is an `InvalidArgumentException` at registration.
+- `Link::version()` composes with `prefix()`, `middleware()`, names,
+  and `{param:pattern}` constraints — group middleware wraps version
+  middleware wraps route middleware, outermost first.
+- Nesting a version inside a version (`/v1/v1`, `/v1/v2`) throws — an
+  accidental double prefix is never produced.
+- `$route->apiVersion()` returns `'v1'` or `null`; unversioned routes
+  are untouched and coexist normally (first-match registration order
+  still applies — register literal versioned paths before broad
+  `{param}` catch-alls).
+- `Router::versions()` lists versions actually registered (`['v1','v2']`,
+  natural-sorted) — derived from routes, never config.
+- `/api/v9/...` with only v1/v2 registered is a plain 404: no fallback
+  between versions, no swallowing by unversioned routes.
+
+**Versioned representations** — subclass the shared resource and keep
+explicit field declarations (`toArray`/`apiSchema`), e.g.
+`App\Http\Resources\V2\UserResource extends UserResource`. Nothing
+forces a V2 copy: versions may share resources when the shape is the
+same.
+
+**Versioned OpenAPI** — `OpenApi::response($router, ['api_version' => 'v2'])`
+emits a document containing only that version's tagged routes (plus
+`x-api-version`, `info.version` = the version id, the version's own
+`describe()` metadata and resource schemas). `'include_unversioned' =>
+true` folds untagged routes in. Unregistered versions are diagnostics
+errors (and a 404 when served via the app's docs controller — see the
+canonical starter's `/docs/{version}/openapi.json`).
+
+## OpenAPI documentation — `Sahil\OpenApi`
+
+OpenAPI 3.1 generated from the **registered route table** — no separate
+spec file to maintain. Methods, paths, path params, and middleware
+security are inferred; everything else is declared — never guessed.
+
+```php
+OpenApi::configure(['title' => 'My API', 'version' => '1.0',
+                    'servers' => ['https://api.example.com']]);
+
+OpenApi::describe('api.users', [
+    'summary' => 'List users', 'tags' => ['Users'],
+    'apiQuery' => ['filters' => ['status'], 'sorts' => ['name'],
+                   'searchable' => ['name'], 'perPage' => 15],
+    'responses' => [200 => ['resource' => UserResource::class,
+                            'collection' => true, 'paginated' => true]],
+]);
+
+OpenApi::describe('api.users.store', [
+    'rules' => ['name' => 'required|string|max:100',
+                'email' => 'required|email'],   // → requestBody schema
+]);
+
+Link::get('/docs/openapi.json', fn () => OpenApi::response($router));
+Link::get('/docs', fn () => OpenApi::ui('/docs/openapi.json'));
+```
+
+**Discovery** — `Router::routes()` enumerated without executing
+controllers or middleware; HEAD/OPTIONS skipped; `{param}` → required
+path params (safe `type: string` default, overridable via
+`pathParams`); named routes → `operationId`.
+
+**Metadata** — `summary`, `description`, `tags`, `operationId`,
+`deprecated`, `pathParams`, `query`, `rules` (validation → requestBody),
+`requestBody`, `responses` (status → `['resource'=>X]`/`['schema'=>…]`/`['rules'=>…]`),
+`security` override (`null` = public; custom schemes declared via
+`security_schemes` config), `apiQuery` (page/perPage/filter/sort/search/
+fields params auto-documented), `x-token-abilities` inferred from
+`token:` middleware. `auth:api` → `bearerAuth` + 401/403; `rules`/
+`apiQuery` ops auto-document the native 422 body. Public operations
+emit explicit `security: []`; `bearerAuth` is only declared when used.
+Extra config: `license`/`license_url`, `tag_descriptions`,
+`include`/`exclude` callables, `self_paths`, `strict`.
+
+**Schemas** — `SchemaMapper` maps validator rules (types, formats,
+min/max context-aware, in→enum, digits→pattern, file→binary) and emits
+`x-validation-rule` + a diagnostic for unmappable rules — never a false
+claim. Resources document via static `apiSchema()` (`toArray` is never
+executed); missing → generic object + warning.
+
+**Diagnostics** — `OpenApi::diagnostics()` returns `level`/`message`
+(warning vs error); `strict => true` throws on errors; orphan
+`describe()` references are always errors, as are `security`
+requirements naming undeclared schemes. Every `$ref` in the document is
+emitted only when its component exists — no dangling references.
+Verified against `@redocly/cli lint` (valid 3.1).
+
+**Docs UI** — `OpenApi::ui()` ships a self-contained zero-CDN viewer;
+pass a `ui_library_url` to opt into vendored Swagger UI assets.
+
+## Authorization (Bouncer)
+
+**Bouncer** is the framework's authorization authority — one question:
+is this user allowed to perform this action on this resource?
+
+```php
+use Sahil\Auth\Bouncer;
+
+// Define abilities once during boot (e.g. a provider's boot()):
+Bouncer::define('manage-users', fn (User $u): bool => $u->isAdmin());
+Bouncer::define('update-post', fn (User $u, Post $p): bool => $u->id === $p->user_id);
+
+// Check anywhere:
+Bouncer::allows('update-post', $post);   // bool — current request's user
+Bouncer::denies('update-post', $post);
+Bouncer::authorize('update-post', $post); // throws: guest → 401, denied → 403
+$user->can('update-post', $post);         // with the Authorizable trait
+$this->authorize('update-post', $post);   // with AuthorizesRequests in a controller
+```
+
+Rules, fail-closed by design:
+
+- Ability names are **exact and case-sensitive**; unknown and empty
+  names deny. `define()` on an existing name throws — replace
+  deliberately with `forget()` first.
+- Callbacks must return exactly `true`; every other value denies. A
+  throwing callback is a bug, not a denial — it propagates (500) with
+  ability context instead of masquerading as a 403.
+- **Guests:** an ability callback runs for guests only when its first
+  parameter is explicitly nullable (`?User $u`) — the opt-in for
+  public abilities; `authorize()` on a guest always answers 401.
+- **Stored permissions:** an `AuthorizableContract` user's
+  `hasPermission($ability)` remains an independent grant, preserving
+  previous Gate semantics. `Gate` itself is kept as a deprecated BC
+  API; all new code uses Bouncer.
+- **Policies (optional):** `Bouncer::policy(Post::class, PostPolicy::class)`
+  maps `update-post` → `PostPolicy::update()` (model-basename suffix
+  stripped) or `updatePost()`. A missing policy or method denies —
+  conventions never grant. `Bouncer::define()` wins over policies.
+- **Tokens:** `TokenAuthorizer::fromAbilities(['posts.read'])` is a
+  *ceiling*, not a grant:
+  `Bouncer::forUser($user)->withToken($token)->authorize('x', $res)`
+  requires token AND owner authorization. `'*'` widens the ceiling only
+  when literally listed; it can never bypass the owner check. Empty
+  ability lists deny everything.
+- **Routes:** `->middleware('ability:manage-users')`; resource args
+  come from route placeholders — `ability:update-post,{post}` passes
+  the `{post}` parameter. Multiple comma-separated abilities mean
+  "any grants access". Guests → 401, denied → 403. Register more
+  aliases with `Kernel::middlewareAlias()`.
+- **Templates:** `@can('manage-users') … @endcan`,
+  `@cannot('delete-post', post) … @endcannot`, and
+  `{{ can('manage-users') ? 'Admin' : 'User' }}` — same engine,
+  deny when no Bouncer service is bound.
+- **Isolation:** decisions are never cached; the manager resolves the
+  current user lazily per check, so long-running workers cannot leak
+  one request's authorization into the next.
+
+## API authentication & tokens — `Sahil\Auth\Tokens`
+
+First-party bearer tokens for stateless API clients — additive to session
+auth, not a replacement.
+
+```php
+$token = $user->createToken('mobile-app', ['posts:read', 'posts:create']);
+$token->plainTextToken;   // shown ONCE — only the SHA-256 digest is stored
+```
+
+The wire format is `{tokenId}.{secret}`; `tokenId` is a public lookup
+key, the 256-bit secret is never persisted. Clients send it as
+`Authorization: Bearer {token}` and `TokenGuard` resolves the user,
+verifies `hash_equals(stored_sha256, sha256(secret))`, checks expiry and
+revocation, attaches the token to the user (`withAccessToken`), and
+throttles `last_used_at` to one write per 60 s. Every failure path —
+missing header, malformed token, unknown id, wrong secret, expired,
+revoked, missing user — returns null identically.
+
+### Protecting routes
+
+```php
+Link::get('/api/user', [TokenController::class, 'me'])
+    ->middleware('auth:api');                 // bearer auth, JSON 401, no redirect
+
+Link::get('/api/posts', ...)
+    ->middleware(['auth:api', 'token:posts:read']);  // + ability ceiling
+```
+
+`auth:api` authenticates without touching the session; the kernel clears
+the request-scoped principal at the top of every `handle()`, so
+sequential worker requests never inherit a previous user.
+
+### Lifecycle
+
+```php
+$user->tokens();                     // management listing — never secrets/hashes
+$user->findToken($tokenId);          // owner-scoped
+$user->revokeToken($tokenId);        // delete — cannot re-authenticate
+$user->revokeAllTokens();
+PersonalAccessToken::pruneExpired(); // sweep expired rows
+```
+
+`createToken(name, abilities, expiresAt)` validates the name (1–255),
+abilities (non-empty strings), and requires future expirations.
+
+### Abilities vs Bouncer
+
+Token abilities are a **ceiling**, never a grant:
+
+```php
+$request->user()->tokenCan('posts:read');   // inside the token's list?
+$user->can('update-post', $post);           // Bouncer AND token ceiling
+```
+
+`Authorizable::can()` and the `ability:` middleware automatically bind
+the current token's `TokenAuthorizer`: a Bouncer "allow" with a token
+lacking the ability still denies; a token ability can never bypass a
+Bouncer denial. Session users have no token → `tokenCan` is false.
+
+### Rate limiting
+
+`Identity::tokenOrIp()` limits **per token** (`tok:{publicId}` — never
+the secret), falls back to `u:{id}` for session users and the client IP
+for guests:
+
+```php
+Limit::perMinute(60)->by(Identity::tokenOrIp());
+```
+
+### Errors
+
+- No/invalid/expired/revoked bearer token → `401 {error:"unauthenticated"}` JSON.
+- Missing token ability → `403` via `AuthorizationException` (consistent with Bouncer).
+- API clients are never redirected to a login page.
+
+`make:auth` (`unda:auth`) scaffolds `personal_access_tokens` migration,
+`HasApiTokens` on `User`, and a `TokenApiController`
+(`POST/GET/DELETE /api/tokens` behind session auth, `GET /api/user`
+behind `auth:api`).
+
+## Rate limiting (`Sahil\RateLimit`)
+
+**RateLimiter** controls how frequently a client may attempt something —
+a separate concern from Bouncer (which decides *whether* a user may act).
+
+```php
+use Sahil\RateLimit\RateLimiter;
+use Sahil\RateLimit\Limit;
+use Sahil\RateLimit\Identity;
+
+// Define once during boot (e.g. a provider's boot()):
+RateLimiter::define('login', ['attempts' => 5, 'per' => '1 minute']);
+RateLimiter::define('api', Limit::perMinute(60)->by(Identity::userOrIp()));
+
+// Check anywhere:
+RateLimiter::hit('login', $request);       // Decision — records a hit
+RateLimiter::remaining('login', $request); // peek — records nothing
+RateLimiter::retryAfter('login', $request);// seconds until the window ends
+RateLimiter::clear('login', $request);     // reset one identity's counter
+```
+
+Protecting routes — the `throttle` alias accepts a **named** limit or an
+**inline** `attempts,duration` spec:
+
+```php
+Link::post('/login', ...)->middleware('throttle:login');
+Link::post('/contact', ...)->middleware('throttle:5,1');   // 5/min
+Link::get('/export', ...)->middleware('throttle:10,1h');   // s/m/h/d suffixes
+Link::post('/bulk', ...)->middleware('throttle:login,api');// every limit must pass
+```
+
+Limits carry a `Limit` object — `attempts` + human-readable window —
+plus optional `->by()` (identity), `->when()`/`->unless()` (conditional
+application), and `->respondUsing()` (custom 429). Ready-made identities
+live on `Identity`: `ip()` (default — honours trusted-proxy config),
+`userOrIp()`, and `accountAndIp()` for credential endpoints — a
+normalized account key mixed with the client IP so one attacker can't
+lock the real owner out, and a botnet can't hammer one account through
+a single source. Identities are hashed into counter keys — raw IPs and
+emails never appear in storage.
+
+The algorithm is a **fixed window** anchored to the first hit: the
+counter resets when the window ends. Simple and predictable; a client
+can fit `2×` attempts across a boundary — acceptable for abuse control,
+documented rather than hidden. Rejected hits still count.
+
+**HTTP behavior:** exceeding a limit returns `429` — a JSON
+`{error: 'too_many_requests'}` for API clients, a minimal HTML page for
+browsers — with `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`
+(never negative), and `X-RateLimit-Reset` (unix timestamp). Unknown limit
+names throw — a misconfigured route fails loudly, never silently open.
+
+**Storage:** counters live in a `CounterStore`, never in the manager —
+no state leaks between requests or workers. `RedisCounterStore` uses
+atomic `INCR`/`EXPIRE` (hard guarantee across fleets);
+`CacheCounterStore` wraps any `CacheContract` driver (correct counters,
+but increments are read-modify-write — fine for one process, use Redis
+for a strict multi-worker bound); `ArrayCounterStore` is
+process-local development storage. Apps sharing one Redis database are
+separated by the manager's `keyPrefix`.
+
+The starter's `RateLimitProvider` wires all of this and ships practical
+`login` / `register` / `password.reset` / `api` definitions; the auth
+scaffold applies `throttle:` to those POST routes. The legacy
+`Auth\RateLimiter` tracker and `new Throttle($key, $store)` construction
+remain for compatibility but are deprecated.
+
+## Mail (`Sahil\Mail`)
+
+Compose and send email through the `Mail` facade or an injected
+`MailerContract` — both resolve the same `MailManager` singleton.
+
+```php
+use Sahil\Mail\Mail;
+
+Mail::to('customer@example.com')
+    ->subject('Welcome')
+    ->html('<h1>Welcome!</h1>')
+    ->text('Welcome!')
+    ->send();                          // hands the message to a transport now
+
+Mail::to($user->email)->send(new WelcomeMail($user));   // reusable mailable
+Mail::to($user->email)->queue(new InvoiceMail($invoice)); // via the queue
+Mail::mailer('smtp')->to('ops@example.com')->send($alert); // named transport
+```
+
+`Message` fields: `from to cc bcc replyTo subject text html header`,
+`attach(path|Attachment, name?, mime?)`, `attachData(bytes, name, mime?)`,
+`embed(...)`/`embedData(...)` for inline resources — `embed()` returns a
+stable `cid:` you can reference from the HTML before sending. Path
+attachments stay references (streamed at send time, queue-safe), in-memory
+attachments travel with the message. Subjects, addresses and header values
+are validated eagerly — header injection is impossible.
+
+**Mailables** extend `Sahil\Mail\Mailable` and compose in `build()` via
+protected helpers (`subject`, `text`, `html`, `view`, `attach`, `embed`,
+`cc`, ...). `view('emails.welcome', $data)` renders through the bound
+`ViewContract`. Recipients named on the `Mail::to()` chain are merged into
+the mailable's message — the chain addresses, the mailable composes.
+
+**Transports** (`mail.transports.<name>`): `smtp` (symfony/mailer `Esmtp`
+— host/port/security `tls`/`ssl`/`none`, optional `auth`), `log` (summary
+only, dev), `array` (in-memory, tests). `mail.from` supplies the sender
+fallback; an empty `MAIL_FROM_ADDRESS` makes send fail clearly instead of
+inventing one.
+
+**Receipts are honest**: `accepted` = the server answered `250` (next-hop
+responsibility, not a mailbox), `sent` = provider took responsibility,
+`delivered` = confirmed receipt, `queued` = stored, nothing attempted yet.
+
+**Queueing** (`MAIL_QUEUE=true`) pushes `SendMailJob` — plain serializable
+data only — onto `mail.queue.name`; a worker resolves the transport at
+execution. Retries are at-least-once (a post-acceptance failure can
+redeliver); use a custom header idempotency key when duplicates matter.
+
+**Testing**: `Mail::fake()` records sends/queues without touching a
+transport (and swaps the container binding, so injected mailers are
+intercepted too). Assert with `Mail::assertSent(Mailable::class|callable|times)`,
+`assertQueued(...)`, `assertNothingSent()`; `Mail::sent()`/`queued()` expose
+the `RecordedMail` entries (message, transport, delay, mailable class).
+`Mail::flushState()` restores the real mailer — call it in tearDown.
+
+## Notifications (`Sahil\Notifications`)
+
+Multi-channel notifications — `database` and `mail` ship today; extra
+channels register on the `Notifier` without touching notifications.
+
+```php
+final class WelcomeNotification extends Notification
+{
+    public function via(NotifiableContract $n): array
+    {
+        return ['database', 'mail'];
+    }
+
+    public function toDatabase(NotifiableContract $n): array
+    {
+        return ['title' => 'Welcome', 'message' => 'Your account is ready.'];
+    }
+
+    public function toMail(NotifiableContract $n): Message
+    {
+        return MailMessage::make()
+            ->subject('Welcome')->greeting('Welcome!')
+            ->line('Your account is ready.')
+            ->action('Open dashboard', '/dashboard')
+            ->toMessage();
+    }
+}
+```
+
+Sending — a notifiable model (`Notifiable` trait) or the `Notify`
+facade:
+
+```php
+$user->notify(new WelcomeNotification());          // immediate
+$user->notify(new WelcomeNotification(), queue: true); // through the queue
+Notify::send($users, new WelcomeNotification());   // many recipients
+Notify::queue($user, new WelcomeNotification());
+```
+
+The database channel persists through `NotificationStore`
+(`DatabaseNotificationStore` on the query builder — parameterized and
+recipient-scoped). The starter ships a `create_notifications_table`
+migration (`id`, `notifiable_type`, `notifiable_id`, `type`, JSON `data`,
+`read_at`, `created_at`) and the scaffold `User` already has the trait:
+
+```php
+$user->notifications();            // newest first, bounded
+$user->unreadNotifications();
+$user->unreadNotificationsCount(); // COUNT query, not a load
+$user->markNotificationAsRead($id);
+$user->markAllNotificationsAsRead();
+$user->deleteNotification($id);
+$user->clearNotifications();
+```
+
+Every store operation is scoped to `(notifiable_type, notifiable_id)` —
+one user cannot read, mark, or delete another's notifications.
+
+Semantics that matter:
+
+- `via()` names channels; unknown names throw, empty means opt-out.
+- Channels are independent — one failing is recorded in the
+  `NotificationReport` (`failedChannels()`) and the rest still run.
+- The mail channel resolves the recipient via
+  `routeNotificationFor('mail')`; a missing route reports `skipped`.
+- `MailMessage` builds the `Sahil\Mail\Message` (subject/greeting/lines/
+  action/closing); the channel adds the recipient and sends through the
+  configured transport — no second mailer exists.
+- Queued delivery travels as `SendNotificationJob` holding a **recipient
+  reference** `(class, id)`, never a serialized model — at execution the
+  recipient is re-resolved via `Model::find()` (or a bound
+  `RecipientResolverContract` for non-ORM recipients), so delivery sees
+  fresh data and no stale connection travels in the payload. Standard
+  retry/failed-job semantics apply; there is no exactly-once guarantee.
+- `routeNotificationFor()` defaults: `mail` → `email` attribute,
+  `database` → `getAuthIdentifier()` or `id`. Both are overridable.
+
+## Events & listeners (`Sahil\Events`)
+
+Decouple components with plain-object events and ordinary listener
+classes:
+
+```php
+use Sahil\Events\Event;
+
+final readonly class UserRegistered
+{
+    public function __construct(public User $user) {}
+}
+
+final class SendWelcomeNotification           // plain class, handle($event)
+{
+    public function handle(UserRegistered $event): void
+    {
+        $event->user->notify(new WelcomeNotification());
+    }
+}
+
+final class EventsProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        $this->app()->container()->singleton(
+            EventDispatcher::class,
+            fn (Container $c) => new EventDispatcher($c),
+        );
+    }
+
+    public function boot(): void
+    {
+        Event::listen(UserRegistered::class, SendWelcomeNotification::class);
+    }
+}
+
+Event::dispatch(new UserRegistered($user));
+```
+
+API: `Event::listen / subscribe / dispatch / listeners / hasListeners /
+forget / forgetAll`. Matching uses `instanceof` — a listener registered
+for a parent class or interface receives subclass events; registration
+order is execution order. Listeners can be `class-string`s (resolved
+through the container per execution — constructor DI included) or plain
+callables.
+
+Queued listeners implement `Sahil\Contracts\Events\QueueableContract`
+(`queueName()`, `queueDelay()`): dispatch pushes an
+`InvokeListenerJob` onto the existing queue — the payload is just the
+listener class plus the serialized event, listener dependencies resolve
+when the job runs, and retry/failed-job behavior is unchanged.
+Unserializable events fail at dispatch time with a descriptive
+`EventException`.
+
+Semantics: sync listeners run inline; the first exception propagates and
+stops dispatch — nothing is swallowed. `EventSubscriberContract`
+(`subscribe(): array<event, list<listener>>`) groups related
+registrations. Duplicate `listen()` calls throw rather than double-fire.
+
+Honest limitation: `Connection` has no after-commit hooks, so there is
+no `dispatchAfterCommit` — dispatch inside a transaction enqueues jobs
+immediately; dispatch after `transaction()` returns if ordering matters.
+The dispatcher holds no event or listener instances, so nothing leaks
+between worker requests or jobs.
+
+## Internationalization & localization (i18n/l10n)
+
+SahilPHP is multilingual by default. The framework default locale is
+**Kiswahili (`sw`)** — framework-owned messages (validation, auth,
+pagination, error pages, generic notices) ship in Swahili and English,
+and applications can add any number of further locales.
+
+**Configuration** lives in `config/app.php` of the application:
+
+```php
+'locale'           => env('APP_LOCALE', 'sw'),
+'fallback_locale'  => env('APP_FALLBACK_LOCALE', 'sw'),
+'available_locales' => array_filter(
+    array_map('trim', explode(',', env('APP_AVAILABLE_LOCALES', 'sw,en'))),
+),
+```
+
+`locale` is the application default, `fallback_locale` is consulted when a
+key is missing in the active locale, and `available_locales` is the
+allow-list — requests can never activate a locale outside it, so
+`?lang=de` on a `sw,en` install degrades safely to the default.
+
+**Translation files** are PHP arrays under `lang/{locale}/{group}.php`,
+loaded by `Sahil\I18n\LangLoader`:
+
+```text
+lang/
+├── sw/  messages.php  validation.php  auth.php  errors.php  pagination.php
+└── en/  messages.php  validation.php  auth.php  errors.php  pagination.php
+```
+
+```php
+// lang/sw/messages.php
+return [
+    'welcome'      => 'Karibu kwenye programu yetu.',
+    'welcome_user' => 'Karibu, :name!',
+    'users'        => ['one' => 'Mtumiaji :count', 'other' => 'Watumiaji :count'],
+];
+```
+
+Application catalogs are searched before the framework's bundled
+`resources/lang` and merge key-by-key — an app may override
+`messages.welcome` without losing the framework's remaining `messages.*`.
+
+**Retrieving messages** uses the `__()`, `trans()` and `trans_choice()`
+helpers (or `translator()` / the `TranslatorContract` service):
+
+```php
+__('messages.welcome');                       // 'Karibu kwenye programu yetu.'
+__('messages.welcome_user', ['name' => 'Idrisa']); // 'Karibu, Idrisa!'
+trans('auth.failed');                         // same lookup, alias
+trans_choice('messages.users', 3);            // 'Watumiaji 3' (sw plural rules)
+```
+
+- Keys are `group.dotted.path`; nested arrays resolve (`auth.password.reset`).
+- `:name` placeholders interpolate from the replacement array; unreplaced
+  placeholders pass through untouched (no exception, no eval — values are
+  plain string substitution).
+- Missing keys consult the fallback locale, then return the key itself —
+  never a crash, never an unrelated value. Malformed catalog files are
+  skipped, not fatal.
+- `trans_choice` uses CLDR-style locale-aware plural rules: Swahili `0/1`
+  are `one`, English `1` is `one`; keyed arrays (`['one' => ..., 'other' => ...]`),
+  pipe syntax (`'moja|zaidi'`), exact selectors `{0}` and intervals
+  `[2,*]` are all supported.
+
+**Active locale** is managed by `Sahil\I18n\Locale` /
+`Application::getLocale()`/`setLocale()`:
+
+```php
+app()->getLocale();   // 'sw'
+app()->setLocale('en'); // throws on unsupported; use setIfSupported() to ignore
+Locale::current();
+```
+
+Inside a request the locale lives in a **request-scoped** `RequestLocale`
+binding: `Kernel::handle()` wraps dispatch in `Application::isolatedRequest()`,
+so the selection is dropped when the scope ends — long-running workers
+(PHP-FPM pools, queue workers, the dev server) cannot leak a previous
+request's locale into the next. Outside any scope a process-level slot
+serves CLI commands.
+
+**Request locale selection** is the job of
+`Sahil\Http\Middleware\SetLocale` (registered as global middleware in the
+starter's provider, after `StartSession`). Precedence:
+
+1. `?lang=xx` (parameter name configurable) — validated, persisted to the
+   session when one is active;
+2. the stored session preference;
+3. `Accept-Language` negotiation (quality-weighted, exact then base-
+   language matching — `en-US` can satisfy an `en` install; disable with
+   `app.locale_negotiate = false`);
+4. the configured default locale.
+
+Because global middleware runs before route matching, locale selection
+also applies to localized error pages for unmatched paths.
+
+**Validation messages** localize automatically: inside an application the
+`Validator` asks the translator for `validation.*` entries, so rules render
+in the active locale; explicit per-field messages always win.
+
+**Error pages** render in the resolved locale — `errors.*` keys drive the
+designed status pages, and the built-in fallback page translates through
+the same safe lookup that can never itself throw.
+
+**Formatting** is separate from translation: `Sahil\I18n\LocaleFormatter`
+(resolved through the container) uses `intl` when the extension is present
+— `NumberFormatter`, `IntlDateFormatter` — and plain-PHP fallbacks
+otherwise:
+
+```php
+$fmt = $container->make(LocaleFormatter::class);
+$fmt->number(12345.6);        // per-locale separators
+$fmt->currency(1500, 'TZS');  // currency is explicit — never assumed
+$fmt->date($ts); $fmt->time($ts); $fmt->datetime($ts);
+// every method accepts an optional $locale override
+```
 
 ## Database layer (Phase 7)
 
@@ -1162,6 +2194,29 @@ below is the one the safety gates are designed around.
 
 `config:show database` prints every key with `password` as `[redacted]`.
 
+### Queued scheduled jobs
+
+`$schedule->job($job)` schedules a `JobContract` for **queue dispatch**:
+when the task is due, the runner hands the job to the bound
+`DispatcherContract` — named queues (`$job->queue()`) are honoured via
+`pushOn()`, and retries, timeouts and failed-job handling stay with the
+queue. Nothing but the job object is registered; the dispatcher resolves
+at execution time, so workers never see stale container state.
+`$schedule->jobSync($job)` runs `handle()` inline in the scheduler
+process for cheap maintenance work — the mode is explicit in the method
+name. A task name defaults to the job class in kebab-case
+(`CleanupExpiredSessions` → `cleanup-expired-sessions`) and may be set
+explicitly.
+
+```php
+$schedule->job(new \App\Jobs\GenerateDailyReport())
+    ->dailyAt('02:00')
+    ->withoutOverlapping();
+
+$schedule->jobSync(new \App\Jobs\PruneTempFiles())
+    ->everyThirtyMinutes();
+```
+
 ## Queued jobs
 
 Work that should not run inside a request is queued and executed by a
@@ -1266,7 +2321,188 @@ unreachable instead of a stack trace.
   configuration errors, reused store.
 - `tests/Queue/JobTest.php` — job defaults and per-job overrides.
 
-## File storage & uploads
+## Outbound HTTP — `Sahil\Http\Http`
+
+The native HTTP client for outbound requests. cURL transport, TLS
+verification always on, manual redirect handling, immutable request
+builders — and a fake transport for tests with zero network traffic.
+
+```php
+use Sahil\Http\Http;
+
+$r = Http::get('https://api.example.com/users', ['page' => 1]);
+$r->json(); $r->status(); $r->successful(); $r->ok(); $r->notFound();
+
+Http::post($url, ['name' => 'John']);            // JSON body + Content-Type
+Http::asForm()->post($url, ['a' => 'b']);        // form-urlencoded
+Http::pending()->withBody('raw', 'text/plain')->post($url);
+
+Http::withToken($t)->withHeaders(['Accept' => 'application/json'])
+    ->timeout(15)->connectTimeout(3)->get($url);
+Http::withBasicAuth('u', 'p')->put($url, $data);
+Http::redirects(3)->get($url);                   // bounded; 301/302/303 → GET,
+                                               // 307/308 replay; credentials
+                                               // stripped cross-origin
+$r->throw();                                     // 4xx/5xx → HttpClientException
+$out = fopen('php://temp', 'r+');
+Http::sink($out)->get($url);                     // stream body, no buffering
+```
+
+Verbs: `get/post/put/patch/delete/head/options/request` — plus `pending()`
+and `with*` entry points returning an immutable `PendingRequest`
+(config cannot leak between requests or worker cycles). Responses
+expose `status/headers/header/body/json` and
+`successful/ok/created/noContent/redirect/clientError/serverError/
+failed/unauthorized/forbidden/notFound/throw`. `json()` is strict —
+malformed JSON throws `HttpClientException`; transport failures (DNS,
+connect, TLS, timeout) throw the same exception with `response()` null,
+distinct from HTTP error statuses which carry the response.
+
+Testing:
+
+```php
+Http::fake([
+    'api.example.com/*' => Http::response(['users' => []], 200),
+]);
+Http::get('https://api.example.com/users');
+Http::assertSent(fn ($r) => $r->method === 'GET');
+```
+
+Unstubbed requests throw — fakes guarantee no stray network traffic.
+DI through `Sahil\Contracts\Http\Client\HttpClientContract`; the
+transport seam is `HttpTransportContract` (`CurlTransport` /
+`FakeTransport`). Runtime requirement: the `curl` extension.
+
+## Outbound webhooks — `Sahil\Webhooks\Webhook`
+
+Register signed webhook endpoints and deliver named event payloads to them
+asynchronously — endpoints persist in `webhook_endpoints` (secrets sealed
+with `Encrypter`/APP_KEY), deliveries run through the existing queue and the
+native `Http` client, and `webhook_deliveries` records lifecycle + diagnostics.
+
+```php
+use Sahil\Webhooks\Webhook;
+
+// Register — the plaintext secret is returned only here; share it with the
+// receiver, it is stored encrypted and never listed or logged.
+$endpoint = Webhook::register('https://hooks.example.com/in', ['user.registered']);
+
+// Update / manage
+Webhook::update($endpoint->id, url: 'https://hooks.example.com/v2', events: ['a', 'b']);
+Webhook::disable($endpoint->id);
+Webhook::enable($endpoint->id);
+Webhook::rotateSecret($endpoint->id);   // new plaintext on the returned endpoint
+Webhook::unregister($endpoint->id);
+Webhook::endpoints();                    // listing — secret-free
+
+// Dispatch — one queued delivery per matching active endpoint; '*' matches all.
+Webhook::deliver('user.registered', ['user_id' => $user->id]);
+```
+
+`deliver()` enqueues one `DeliverWebhookJob` per endpoint carrying **only the
+delivery ID** — endpoint, secret and payload re-resolve from the store at
+execution time, so an endpoint deleted/disabled after enqueue can never receive
+a stale send and no secret enters the queue payload. One endpoint's failure
+never blocks another's.
+
+### Signature format
+
+Every request is `POST` + `application/json` with headers:
+
+| Header | Value |
+|---|---|
+| `X-Sahil-Event` | event name |
+| `X-Sahil-Delivery` | stable delivery ID — **the receiver's dedup key** |
+| `X-Sahil-Timestamp` | Unix timestamp, regenerated per attempt |
+| `X-Sahil-Signature` | hex `hash_hmac('sha256', timestamp.'.'.raw_body, secret)` |
+| `X-Sahil-Signature-Version` | `v1` |
+
+Receiver verification (recompute + `hash_equals`, bound the timestamp):
+
+```php
+$signer = new \Sahil\Webhooks\WebhookSigner();
+$valid = $signer->verify($secret, (int) $ts, $rawBody, $signature)
+    && $signer->isFresh((int) $ts, 300);
+```
+
+### Lifecycle, retries, guarantees
+
+Statuses: `queued` → `delivered` (2xx) | `failed` (attempts exhausted).
+`attempts` counts executions; `last_status`/`error` record the last outcome
+(error bounded to 2 KiB). Retries come from the queue itself — 5 attempts,
+`retryDelay` 60s→300s, exhaustion lands in `failed_jobs` like any job.
+Requests are bounded (`timeout` 15s / `connect` 5s), **redirects are not
+followed** — the signature binds to the registered URL, and the HTTP
+client's credential-stripping never applies.
+
+Not exactly-once: a receiver may process a request whose response is lost,
+producing a retry — receivers deduplicate on `X-Sahil-Delivery`.
+
+### URL policy
+
+`https` public destinations only by default; malformed URLs, other schemes
+and non-public destinations are rejected. Destination checking is **DNS-aware
+and re-run on every delivery attempt** (including each queue retry):
+
+1. The URL is structurally re-validated.
+2. The host's A and AAAA records are resolved fresh.
+3. **Every** answer is classified — a single private/loopback/link-local/
+   CGNAT/multicast/reserved/documentation address rejects the whole host,
+   as do IPv4-mapped (`::ffff:a.b.c.d`), IPv4-compatible and NAT64
+   (`64:ff9b::/96`) wrappers of non-public IPv4. Empty results, lookup
+   failures and malformed answers fail closed.
+4. The connection is **pinned** to exactly the validated addresses via
+   `CURLOPT_RESOLVE` — cURL performs no second DNS lookup, so DNS
+   rebinding cannot swap in a different address after validation. The
+   original hostname is preserved for the `Host` header, TLS SNI and
+   certificate verification; proxies are bypassed (`CURLOPT_NOPROXY=*`)
+   so env-configured proxies cannot route around the policy, and
+   redirects are never followed.
+
+Validation failures emit no HTTP request and flow through the normal
+queue retry/failure lifecycle with a bounded, IP-free diagnostic.
+
+Local development opts in via `WEBHOOKS_ALLOW_PRIVATE=1` (permits
+loopback/private/link-local destinations) and `WEBHOOKS_ALLOW_HTTP=1`
+(permits `http://`) — overrides relax scheme/IP policy only; structural
+validation, DNS resolution and connection pinning still apply.
+
+Remaining limits: classification relies on the literal prefix tables in
+`Sahil\Webhooks\PublicIp` (kept to RFC ranges) rather than live BGP
+reachability — an exotic-but-global-looking allocation outside those
+tables could pass; and DNSSEC is not validated (a spoofed *public* answer
+would still be delivered, matching normal HTTPS trust).
+
+Requires the `webhook_endpoints`/`webhook_deliveries` migrations
+(`php sahil migrate`) and a running worker for actual sends.
+
+## File storage & uploads — Kapu
+
+**`Sahil\Storage\Kapu` is the official public filesystem API** (Swahili
+for *bucket*). It is a thin facade over the container-bound
+`StorageContract` — dependency injection stays available through that
+contract, and there is no competing `Storage` facade.
+
+```php
+use Sahil\Storage\Kapu;
+
+Kapu::put('documents/report.txt', 'Report contents');
+$content = Kapu::get('documents/report.txt');
+Kapu::exists('documents/report.txt');        // missing() is the inverse
+Kapu::disk('private')->put('a.pdf', $pdf);   // named disk
+Kapu::copy('a.txt', 'b.txt'); Kapu::move('b.txt', 'c.txt');
+Kapu::size('a.txt'); Kapu::lastModified('a.txt'); Kapu::mimeType('a.txt');
+Kapu::files('docs'); Kapu::directories('docs'); Kapu::allFiles('docs');
+Kapu::delete('a.txt'); Kapu::deleteDirectory('docs');
+$stream = Kapu::readStream('big.bin');        // never buffers
+Kapu::writeStream('big.bin', $openStream);    // caller keeps ownership
+```
+
+Scope: **local filesystem only** in this milestone — remote drivers are a
+separate future capability (`StorageManager::extend()` is the seam).
+`listContents`/`files` on a missing directory throws a descriptive
+`StorageException`, as does `get` on a missing file — predictable, never
+silently empty.
 
 Files are addressed through **named disks**. A disk has a driver, a root and
 whether it is publicly served; unqualified calls use `storage.default`.
@@ -1417,11 +2653,122 @@ server is still part of the trust boundary.
   forged MIME types and extensions, executable-extension refusal, name
   sanitization, client path traversal, remote-adapter verification.
 
+## Logging & observability — `Sahil\Log\Log`
+
+The `Log` facade writes structured records through container-bound
+channels; `LoggerContract` stays injectable everywhere (it resolves the
+`LogManager`, so shared context applies to DI users too).
+
+```php
+use Sahil\Log\Log;
+
+Log::info('User registered', ['user_id' => $user->id]);
+Log::warning('Gateway slow', ['duration_ms' => 2400]);
+Log::channel('stderr')->error('Boot failure');
+```
+
+All PSR-3 levels: `emergency alert critical error warning notice info
+debug` + `log($level, …)`. Context values are redacted recursively —
+`password`, `*secret*`, `*token*`, `api_key`, `credential`, `private`,
+`signing`, `encryption`, `cookie`, `authorization`, `bearer`,
+`session_id` keys become `[redacted]` — secrets can never reach a sink.
+
+### Channels (`config/logging.php`)
+
+| driver | behavior |
+|---|---|
+| `file` | JSONL (or `line`) to `storage/logs/app.log`, `LOCK_EX` appends, dir-safe |
+| `stderr` | `php://stderr` for containers/process managers — never stdout |
+| `stack` | fan-out to named channels; one failure can't starve the rest (all-fail throws `LoggingException`) |
+
+`LOG_CHANNEL` (default `file`), `LOG_LEVEL` (default `info` threshold),
+`LOG_FORMAT` (`json`|`line`). Unwritable sinks throw — a broken log
+setup must not swallow diagnostics.
+
+### Shared context, scopes, correlation
+
+`Log::shareContext([...])` merges fields into every record;
+`Log::scope($ctx, fn)` restores the previous context in `finally` —
+sequential requests/jobs can't leak. `RequestIdMiddleware` generates a
+32-hex `X-Request-Id` (a *valid* inbound value — `[A-Za-z0-9._:-]{8,128}`
+— is honored) and scopes `request_id` around the request.
+
+### Integrations
+
+- **Exceptions**: `CentralExceptionHandler` logs class/message/file/
+  line/status/previous-chain/trace + request_id once per throwable;
+  sink failures never mask the original exception.
+- **Queue**: `Worker` logs job start (debug), completion (info, with
+  duration) and failure (error, with exception class+message) — no
+  payload contents.
+- **Scheduler**: `ScheduleRunner` logs task outcomes via `LoggerContract`.
+- **Webhooks**: delivery attempts/failures log `delivery_id`,
+  `endpoint_id`, `event`, `status`, `duration_ms` — never secrets or
+  signature material.
+
+## Cache & sessions
+
+### Cache (`Sahil\Contracts\Cache\CacheContract`)
+
+Drivers: **file** (default, `storage/framework/cache`) and **redis**
+(phpredis). API: `get/put/add/increment/decrement/forget/flush/has/ttL`,
+all TTLs in seconds (`0` = no expiry).
+
+```php
+$cache->put('profile.42', $profile, 600);
+$cache->get('profile.42');           // null when missing or expired
+$cache->add('lock.deploy', 1, 30);   // create-if-absent
+$cache->increment('hits');           // atomic per driver
+```
+
+Driver guarantees — verified, not assumed:
+
+| | file | redis |
+|---|---|---|
+| Values | all types via `serialize()` | same, `serialize()` |
+| `add` | atomic under per-key flock | atomic `SET NX EX` |
+| `increment`/`decrement` | atomic under flock (single host) | atomic `INCRBY`/`DECRBY` — negative allowed |
+| `flush` | deletes `cache_*` files | prefix-scoped `SCAN`+`UNLINK`, never `FLUSHDB` |
+| Expiry | reaped on read | Redis TTL |
+| Multi-host | **not** atomic (NFS) | atomic |
+
+Entries are `serialize()`d payloads behind a `<?php die; ?>` guard —
+reads never `require` the file, so corrupted/tampered entries are a safe
+miss (removed), not a code path. `RedisCache` transparently reconnects
+once per call after a dropped connection (worker-safe) and namespaces
+keys with `CACHE_PREFIX` so several apps can share one database.
+Counters made by `INCRBY` read back as ints.
+
+### Sessions
+
+`SessionContract` over `SessionDriverContract`; **file** driver
+(`storage/framework/sessions`, per-file `flock`, `0600`, JSON payload —
+no object injection surface). `StartSession` middleware starts from the
+request cookie, persists in a `finally` (a throwing handler still saves
+flashed data), and applies the cookie.
+
+- IDs: 40-hex from `random_bytes`; cookie `HttpOnly` + `SameSite`
+  (lax default) + `Secure` when `SESSION_SECURE_COOKIE`.
+- Login calls `regenerate(true)` — the pre-auth ID is destroyed
+  (fixation-safe); `SessionAuthState::clear()` does the same on logout.
+- Lifetime expiry is enforced on read; `gc()` reaps files (1% of
+  requests via middleware).
+- Flash data lives exactly one request; CSRF `issueToken()` rotates
+  per render into a bounded 8-token validity ring (tabs/back button
+  stay valid) — validated with `hash_equals`.
+- Worker isolation: the session re-initializes per `Request` object
+  (weakref), so sequential requests/jobs in one process cannot leak.
+
+`CacheCounterStore` wraps any cache driver for rate limiting;
+`RedisCounterStore` uses server-atomic `INCR`+`EXPIRE` for a hard
+multi-worker guarantee.
+
 ## Task scheduler
 
 Recurring work is declared as PHP tasks in `routes/schedule.php` and run by
 one command that an external trigger (cron or a systemd timer) invokes every
-minute. Tasks are plain callables: no queue, no worker process of their own.
+minute. Tasks are plain callables or queued jobs — see *Queued scheduled jobs*
+below; the scheduler itself runs no worker of its own.
 
 ```php
 use Sahil\Scheduler\Schedule;
@@ -1445,7 +2792,7 @@ a duplicate registration is a configuration error, not a silent skip.
 | Schedule | Cron equivalent |
 |----------|-----------------|
 | `everyMinute()` | `* * * * *` |
-| `every(5)` | `*/5 * * * *` |
+| `every(5)`, `everyFiveMinutes()`, `everyFifteenMinutes()`, `everyThirtyMinutes()` | `*/5 * * * *`, `*/15 * * * *`, `*/30 * * * *` |
 | `hourly()`, `hourlyAt(15)` | `0 * * * *`, `15 * * * *` |
 | `daily()`, `dailyAt('03:30')` | `0 0 * * *`, `30 3 * * *` |
 | `weekly()`, `weeklyOn(1, '09:00')` | `0 0 * * 0`, `0 9 * * 1` |

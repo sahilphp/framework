@@ -308,18 +308,111 @@ final class RenderContext
         return $this->assetManager()->developmentClient();
     }
 
-    public function csrfField(): string {        
-    $app = $this->engine->app();     
-    if ($app === null) {           
-        throw new ViewRenderException('CSRF field requires an application context with a session.');
+    /**
+     * `@csrf` / `csrf_field()` — the hidden `_token` input for a form.
+     *
+     * Every call ISSUES a fresh token: the session keeps the ones it
+     * retires valid inside a bounded ring, so several forms on a page and
+     * previously rendered pages keep working.
+     */
+    public function csrfField(): string
+    {
+        return sprintf(
+            '<input type="hidden" name="_token" value="%s">',
+            Escaper::html($this->issueCsrfToken()),
+        );
+    }
+
+    /**
+     * `{{ csrf_token() }}` — the freshly issued token value itself.
+     */
+    public function csrfToken(): string
+    {
+        return $this->issueCsrfToken();
+    }
+
+    /**
+     * `{{ link('route.name', {id: 3}) }}` — URL for a named route through
+     * the application's router. Unknown names and missing parameters
+     * surface the router's own descriptive exceptions.
+     *
+     * @param array<string, mixed> $params
+     */
+    public function link(string $name, array $params = []): string
+    {
+        $app = $this->engine->app();
+
+        if ($app === null) {
+            throw new ViewRenderException('link() requires an application context with a router.');
         }
-        
-        $session = $app->container()->get(Sahil\Contracts\Session\SessionContract::class);
-        
-        return '<input type="hidden" name="_token" value="' . $session->token() . '"/>';
-     }
-     
-     private function assetManager(): AssetManagerContract
+
+        /** @var \Sahil\Http\Router $router */
+        $router = $app->container()->make(\Sahil\Http\Router::class);
+
+        return $router->generate($name, $params);
+    }
+
+    /**
+     * `{{ can('update-post', post) }}` / `@can('manage-users')` — the
+     * same Bouncer decision PHP and middleware make, evaluated for the
+     * current request's user. No Bouncer service → deny (fail closed).
+     */
+    public function can(string $ability, mixed ...$arguments): bool
+    {
+        $app = $this->engine->app();
+
+        if ($app === null || !$app->container()->bound(\Sahil\Auth\BouncerManager::class)) {
+            return false;
+        }
+
+        /** @var \Sahil\Auth\BouncerManager $bouncer */
+        $bouncer = $app->container()->make(\Sahil\Auth\BouncerManager::class);
+
+        return $bouncer->allows($ability, $arguments);
+    }
+
+    /**
+     * `{{ cannot('delete-post', post) }}` / `@cannot(...)` — negated can().
+     */
+    public function cannot(string $ability, mixed ...$arguments): bool
+    {
+        return !$this->can($ability, ...$arguments);
+    }
+
+    /**
+     * `{{ error('email') }}` / `{{ error('email', 'register') }}` — the
+     * first message for a field from the shared flashed error bags
+     * (default bag when no name is given). Empty when nothing failed.
+     */
+    public function error(string $field, ?string $bag = null): string
+    {
+        $errors = $this->data['errors'] ?? null;
+
+        if (!$errors instanceof \Sahil\Validation\ViewErrorBag) {
+            return '';
+        }
+
+        return $errors->bag($bag)->first($field) ?? '';
+    }
+
+    /**
+     * Mint the token this render offers to forms.
+     */
+    private function issueCsrfToken(): string
+    {
+        $app = $this->engine->app();
+
+        if ($app === null || !$app->container()->bound(\Sahil\Contracts\Session\SessionContract::class)) {
+            throw new ViewRenderException('CSRF helpers require an application context with a session.');
+        }
+
+        /** @var \Sahil\Contracts\Session\SessionContract $session */
+        $session = $app->container()->make(\Sahil\Contracts\Session\SessionContract::class);
+
+        return $session->issueToken();
+    }
+
+    private function assetManager(): AssetManagerContract
     {
         if ($this->assets === null) {
             throw new ViewRenderException(

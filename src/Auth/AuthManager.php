@@ -126,11 +126,34 @@ final class AuthManager
     }
 
     /**
+     * The request-scoped principal set by a non-session guard (e.g. bearer
+     * token authentication). Wins over the session state for this request;
+     * the kernel clears it at the top of every `handle()` so a stale
+     * identity can never bleed into the next request in a worker.
+     */
+    private ?AuthenticatableContract $requestPrincipal = null;
+
+    /**
+     * Attach a token-authenticated principal to the current request only —
+     * no session writes.
+     */
+    public function viaToken(AuthenticatableContract $user): void
+    {
+        $this->requestPrincipal = $user;
+    }
+
+    /** Clear the request-scoped principal (per-request, worker-safe). */
+    public function resetRequestPrincipal(): void
+    {
+        $this->requestPrincipal = null;
+    }
+
+    /**
      * Get the currently authenticated user.
      */
     public function user(): ?AuthenticatableContract
     {
-        return $this->state->user();
+        return $this->requestPrincipal ?? $this->state->user();
     }
 
     /**

@@ -6,7 +6,6 @@ namespace Sahil\Tests\Http;
 
 use PHPUnit\Framework\TestCase;
 use Sahil\Auth\AuthManager;
-use Sahil\Auth\Gate;
 use Sahil\Auth\Password;
 use Sahil\Auth\RateLimiter;
 use Sahil\Auth\SessionAuthState;
@@ -20,8 +19,8 @@ use Sahil\Http\Middleware\MiddlewareSpec;
 use Sahil\Http\Middleware\ParameterizedMiddlewareContract;
 use Sahil\Http\Request;
 use Sahil\Http\Response;
-use Sahil\Http\Route;
 use Sahil\Http\Router;
+use Sahil\Routing\Link;
 use Sahil\Session\FileSessionDriver;
 use Sahil\Session\Session;
 
@@ -66,7 +65,7 @@ final class MiddlewareSpecTest extends TestCase
     {
         $router = new Router();
         $router->register(
-            Route::get('/limited', static fn (): Response => Response::text('reached'))
+            Link::get('/limited', static fn (): Response => Response::text('reached'))
                 ->middleware([new MiddlewareSpec(ParameterEchoMiddleware::class, ['ten', 'twenty'])]),
         );
 
@@ -81,7 +80,7 @@ final class MiddlewareSpecTest extends TestCase
     {
         $router = new Router();
         $router->register(
-            Route::get('/plain', static fn (): Response => Response::text('ok'))
+            Link::get('/plain', static fn (): Response => Response::text('ok'))
                 ->middleware([new MiddlewareSpec(ParameterEchoMiddleware::class)]),
         );
 
@@ -140,7 +139,7 @@ final class MiddlewareSpecTest extends TestCase
     {
         [$auth] = $this->makeAuth([]);
 
-        $authorize = new Authorize($auth, new Gate());
+        $authorize = new Authorize($auth, new \Sahil\Auth\BouncerManager());
 
         self::assertInstanceOf(MiddlewareContract::class, $authorize);
         self::assertInstanceOf(ParameterizedMiddlewareContract::class, $authorize);
@@ -149,7 +148,7 @@ final class MiddlewareSpecTest extends TestCase
     public function test_authorize_denies_when_the_session_user_lacks_the_ability(): void
     {
         [$auth] = $this->makeAuth([]);
-        $gate = new Gate();
+        $gate = new \Sahil\Auth\BouncerManager();
         $gate->define('publish-post', static fn ($user): bool => false);
 
         $authorize = new Authorize($auth, $gate);
@@ -167,7 +166,7 @@ final class MiddlewareSpecTest extends TestCase
     public function test_authorize_allows_when_a_gate_grants_the_ability(): void
     {
         [$auth] = $this->makeAuth([]);
-        $gate = new Gate();
+        $gate = new \Sahil\Auth\BouncerManager();
         $gate->define('publish-post', static fn ($user): bool => $user !== null);
 
         $authorize = new Authorize($auth, $gate);
@@ -189,7 +188,7 @@ final class MiddlewareSpecTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('non-empty ability name');
 
-        (new Authorize($auth, new Gate()))->handleWithParameters(
+        (new Authorize($auth, new \Sahil\Auth\BouncerManager()))->handleWithParameters(
             self::request('/posts', 'POST'),
             static fn (Request $r): Response => Response::text('published'),
             [123],

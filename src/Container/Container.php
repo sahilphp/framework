@@ -197,6 +197,17 @@ final class Container implements ContainerInterface
         return isset($this->bindings[$id]) || isset($this->instances[$id]);
     }
 
+    /**
+     * True only when a live shared instance already exists — checks
+     * WITHOUT triggering construction, unlike {@see make()}.
+     */
+    public function resolved(string $id): bool
+    {
+        $id = $this->getBaseName($id);
+
+        return isset($this->instances[$id]);
+    }
+
     public function get(string $id): mixed
     {
         return $this->resolve($id);

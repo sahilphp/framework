@@ -192,6 +192,31 @@ final class SmtpTransport implements TransportContract
             $email->getHeaders()->addTextHeader($name, $value);
         }
 
+        foreach ($message->attachments() as $attachment) {
+            if ($attachment->path !== null) {
+                // Streamed, not buffered — the file can be arbitrarily large.
+                if ($attachment->inline) {
+                    $email->embedFromPath($attachment->path, $attachment->name ?? basename($attachment->path), $attachment->mime);
+                } else {
+                    $email->attachFromPath($attachment->path, $attachment->name ?? basename($attachment->path), $attachment->mime);
+                }
+            } elseif ($attachment->inline) {
+                $email->embed((string) $attachment->body, $attachment->name ?? 'attachment', $attachment->mime);
+            } else {
+                $email->attach((string) $attachment->body, $attachment->name ?? 'attachment', $attachment->mime);
+            }
+
+            // Honour the content-id chosen when the markup was composed.
+            if ($attachment->inline && $attachment->contentId !== null) {
+                $parts = $email->getAttachments();
+                $part = end($parts);
+
+                if ($part !== false) {
+                    $part->setContentId($attachment->contentId);
+                }
+            }
+        }
+
         return $email;
     }
 

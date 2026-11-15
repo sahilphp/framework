@@ -22,7 +22,11 @@ final class RenderedViewTest extends TestCase
         self::assertInstanceOf(RenderedView::class, $view);
         self::assertSame('pages.home', $view->template());
         self::assertTrue($view->hasTemplate());
-        self::assertSame(['heading' => 'Hello'], $view->data());
+        // Request-shared keys (errors/old) are merged under caller data.
+        $data = $view->data();
+        self::assertSame('Hello', $data['heading']);
+        self::assertSame([], $data['old']);
+        self::assertInstanceOf(\Sahil\Validation\ViewErrorBag::class, $data['errors']);
         self::assertSame('<h1>Hello</h1>', $view->markup());
         self::assertSame('sahil', $view->contextValue('engine'));
         self::assertStringContainsString('pages/home.sahil.php', (string) $view->contextValue('path'));

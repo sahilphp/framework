@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Sahil\Http\Middleware;
 
-use Closure;
 use RuntimeException;
 use Sahil\Container\Container;
 use Sahil\Http\Request;
-use Sahil\Http\Response;
 
 /**
  * A route middleware entry that carries constructor-free parameters.
@@ -18,7 +16,7 @@ use Sahil\Http\Response;
  * that is resolved per request. This value object pairs a class-string with the
  * parameters the middleware should receive:
  *
- *     Route::get('/posts', [PostController::class, 'store'])
+ *     Link::get('/posts', [PostController::class, 'store'])
  *         ->middleware([new MiddlewareSpec(Authorize::class, ['publish-post'])]);
  *
  * Resolution happens inside the request scope (the kernel resolves route

@@ -1,8 +1,6 @@
 @extends('errors.layout')
-
 @section('title')Method not allowed@endsection
-
 @section('content')
-    <h1>That method is not allowed here</h1>
-    <p>This address does not accept the request method that was used. Go back and try again with the form or link on the page.</p>
+    <h1>{{ __('errors.method_title') }}</h1>
+    <p>{{ __('errors.method_detail') }}</p>
 @endsection

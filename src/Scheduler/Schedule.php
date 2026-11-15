@@ -6,6 +6,9 @@ namespace Sahil\Scheduler;
 
 use Closure;
 use DateTimeImmutable;
+use Sahil\Contracts\Queue\DispatcherContract;
+use Sahil\Contracts\Queue\Jobs\JobContract;
+use Sahil\Foundation\Application;
 
 /**
  * The registered tasks for this installation.
@@ -47,6 +50,59 @@ final class Schedule
         }
 
         return $this->tasks[$name] = new Task($name, $callback, $this->timezone);
+    }
+
+    /**
+     * Register a queueable job as a scheduled task — the due task hands
+     * the job to the queue's `DispatcherContract` at execution time, so
+     * retries, timeouts and failed-job handling stay the queue's own.
+     * Nothing but the job object is registered; the dispatcher resolves
+     * fresh when the task runs.
+     *
+     * @param JobContract $job a `Job`/`JobContract`; `onQueue()` names the queue
+     * @param string|null $name task name — defaults to the job class in kebab-case
+     */
+    public function job(JobContract $job, ?string $name = null): Task
+    {
+        return $this->call($name ?? self::taskName($job), static function () use ($job): void {
+            $container = Application::peek()?->container();
+
+            if ($container === null || !$container->has(DispatcherContract::class)) {
+                throw new SchedulerException(sprintf(
+                    'Scheduled job [%s] needs a bound %s to dispatch onto the queue.',
+                    $job::class,
+                    DispatcherContract::class,
+                ));
+            }
+
+            $jobQueue = $job->queue();
+
+            if ($jobQueue !== null) {
+                $container->make(DispatcherContract::class)->pushOn($jobQueue, $job);
+            } else {
+                $container->make(DispatcherContract::class)->dispatch($job);
+            }
+        });
+    }
+
+    /**
+     * Register a job that runs its `handle()` inline in the scheduler
+     * process — for cheap maintenance work that does not need a worker.
+     * The execution mode is explicit in the name.
+     */
+    public function jobSync(JobContract $job, ?string $name = null): Task
+    {
+        return $this->call($name ?? self::taskName($job), static function () use ($job): void {
+            $job->handle();
+        });
+    }
+
+    /** `App\Jobs\CleanupExpiredSessions` → `cleanup-expired-sessions` */
+    private static function taskName(JobContract $job): string
+    {
+        $base = (new \ReflectionClass($job))->getShortName();
+
+        return strtolower((string) preg_replace('/(?<!^)[A-Z]/', '-$0', $base));
     }
 
     public function task(string $name): ?Task

@@ -79,9 +79,23 @@ final class Response
      * every value it interpolates (see {@see \Sahil\View\Escaper}), so the
      * charset is declared here and the bytes are sent as produced.
      */
-    public static function html(string|RenderedView $body, int $status = 200): self
+    /**
+     * `Response::html('<p>x</p>')` sends ready markup; `Response::html(
+     * 'pages.x', ['k' => 'v'])` renders the template through the unified
+     * renderer. `int` second arg remains the status code (unchanged).
+     */
+    public static function html(string|RenderedView $body, int|array $options = 200, int $status = 200): self
     {
+        if (is_array($options)) {
+            return \Sahil\Rendering\Render::html(
+                $body instanceof RenderedView ? $body->template() : $body,
+                $options,
+                $status,
+            );
+        }
+
         $rendered = $body instanceof RenderedView ? $body : null;
+        $status = $options;
         $response = new self(
             $status,
             ['Content-Type' => 'text/html; charset=utf-8'],
@@ -100,21 +114,27 @@ final class Response
      * state. Pass the rendered view (not just markup) so the adapter can
      * resolve its entry component.
      */
-    public static function vue(string|self|RenderedView $view, int $status = 200): self
+    public static function vue(string|self|RenderedView $view, int|array $options = 200, int $status = 200): self
     {
-        return self::frontendResponse('vue', $view, $status);
+        return self::frontendResponse('vue', $view, $options, $status);
     }
 
     /** React response, tagged for the `react` frontend. */
-    public static function react(string|self|RenderedView $view, int $status = 200): self
+    public static function react(string|self|RenderedView $view, int|array $options = 200, int $status = 200): self
     {
-        return self::frontendResponse('react', $view, $status);
+        return self::frontendResponse('react', $view, $options, $status);
     }
 
     /** Svelte response, tagged for the `svelte` frontend. */
-    public static function svelte(string|self|RenderedView $view, int $status = 200): self
+    public static function svelte(string|self|RenderedView $view, int|array $options = 200, int $status = 200): self
     {
-        return self::frontendResponse('svelte', $view, $status);
+        return self::frontendResponse('svelte', $view, $options, $status);
+    }
+
+    /** Firefiber response, tagged for the canonical `fire` environment. */
+    public static function fire(string|self|RenderedView $view, int|array $options = 200, int $status = 200): self
+    {
+        return self::frontendResponse('fire', $view, $options, $status);
     }
 
     /**
@@ -151,8 +171,22 @@ final class Response
         return $this->renderedView;
     }
 
-    private static function frontendResponse(string $frontend, string|self|RenderedView $view, int $status): self
+    /**
+     * `Response::vue('pages.x', ['props'])` renders through the unified
+     * renderer immediately; `Response::vue($renderedView)` tags the
+     * response for the deferred {@see \Sahil\Frontend\FrontendRenderer}
+     * pipeline — both paths are preserved.
+     */
+    private static function frontendResponse(string $frontend, string|self|RenderedView $view, int|array $options, int $status): self
     {
+        if (is_string($view) && is_array($options)) {
+            $response = \Sahil\Rendering\Render::to($frontend, $view, $options, $status);
+            $response->renderedView = new RenderedView($view, $options, $response->body());
+
+            return $response->withFrontend($frontend);
+        }
+
+        $status = is_int($options) ? $options : $status;
         $response = $view instanceof self ? $view : self::html($view, $status);
 
         return $response->withFrontend($frontend);

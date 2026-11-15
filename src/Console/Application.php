@@ -147,7 +147,7 @@ final class Application
             $command->bindApplication($this->boot());
         }
 
-        $input = CommandInput::parse($tokens, $command->optionSpecs());
+        $input = CommandInput::parse($tokens, $command->optionSpecs(), $command->shortOptions());
 
         return $command->execute($input, $output);
     }

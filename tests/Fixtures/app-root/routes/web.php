@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Sahil\Contracts\View\ViewContract;
 use Sahil\Http\Response;
-use Sahil\Http\Route;
+use Sahil\Routing\Link;
 
 /**
  * Minimal HTTP surface for the framework application fixture.
@@ -13,15 +13,15 @@ use Sahil\Http\Route;
  * routes cover the application-shaped examples that expect a real home page
  * and health endpoint.
  *
- * @return list<Route>
+ * @return list<Link>
  */
 return [
-    Route::get('/health', static fn (): Response => Response::json([
+    Link::get('/health', static fn (): Response => Response::json([
         'status' => 'ok',
         'booted' => true,
     ])),
 
-    Route::get('/', static function (): Response {
+    Link::get('/', static function (): Response {
         $html = app()->container()->make(ViewContract::class)->render('pages.home', [
             'title' => 'Home',
             'heading' => 'SahilPHP templates',
@@ -33,7 +33,7 @@ return [
         return Response::html($html);
     }),
 
-    Route::get('/ui-kit', static function (): Response {
+    Link::get('/ui-kit', static function (): Response {
         $html = app()->container()->make(ViewContract::class)->render('pages.ui-kit');
 
         return Response::html($html);

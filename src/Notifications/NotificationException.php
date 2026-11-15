@@ -14,4 +14,13 @@ use RuntimeException;
  */
 final class NotificationException extends RuntimeException
 {
+    public static function missingComposer(string $notification, string $channel): self
+    {
+        return new self(sprintf(
+            'Notification [%s] asks for the [%s] channel but does not implement to%s().',
+            $notification,
+            $channel,
+            ucfirst($channel),
+        ));
+    }
 }

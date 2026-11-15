@@ -9,7 +9,7 @@ use RuntimeException;
 use Sahil\Http\Middleware\MiddlewareContract;
 use Sahil\Http\Request;
 use Sahil\Http\Response;
-use Sahil\Http\Route;
+use Sahil\Routing\Link;
 use Sahil\Http\Router;
 use Sahil\Tests\FrameworkTestCase;
 
@@ -39,13 +39,13 @@ final class HttpFeatureExampleTest extends FrameworkTestCase
         parent::setUp();
 
         $this->withRoutes(static function (Router $router): void {
-            $router->register(Route::post('/examples/echo', static function (Request $request): Response {
+            $router->register(Link::post('/examples/echo', static function (Request $request): Response {
                 $payload = $request->hasJsonBody() ? $request->json() : $request->form();
 
                 return Response::json(['received' => $payload], 201);
             }));
 
-            $router->register(Route::get('/examples/stamped', static fn (): Response => Response::json(['ok' => true]))
+            $router->register(Link::get('/examples/stamped', static fn (): Response => Response::json(['ok' => true]))
                 ->middleware(new class () implements MiddlewareContract {
                     public function handle(Request $request, Closure $next): Response
                     {
@@ -53,7 +53,7 @@ final class HttpFeatureExampleTest extends FrameworkTestCase
                     }
                 }));
 
-            $router->register(Route::get('/examples/explode', static function (): Response {
+            $router->register(Link::get('/examples/explode', static function (): Response {
                 throw new RuntimeException('Intentional example failure.');
             }));
         });

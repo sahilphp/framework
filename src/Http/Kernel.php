@@ -7,12 +7,16 @@ namespace Sahil\Http;
 use Closure;
 use Sahil\Container\Container;
 use Sahil\Contracts\Foundation\ApplicationContract;
+use Sahil\Contracts\Session\SessionContract;
 use Sahil\Frontend\FrontendRenderer;
 use Sahil\Frontend\InvalidFrontendConfigurationException;
 use Sahil\Http\Exception\HttpException;
 use Sahil\Http\Exception\UnsupportedMediaTypeHttpException;
 use Sahil\Http\Middleware\MiddlewareContract;
 use Sahil\Http\Middleware\MiddlewareSpec;
+use Sahil\Http\Middleware\RouteArgument;
+use Sahil\Validation\FormInput;
+use Sahil\Validation\ValidationException;
 use Throwable;
 
 /**
@@ -37,6 +41,19 @@ final class Kernel
 {
     /** @var list<MiddlewareContract> global (outermost-first) middleware */
     private array $globalMiddleware = [];
+
+    /**
+     * Route middleware aliases (`alias:params` in route definitions).
+     * `ability` is the stable built-in alias for Bouncer checks.
+     *
+     * @var array<string, class-string>
+     */
+    private array $middlewareAliases = [
+        'ability' => \Sahil\Http\Middleware\Authorize::class,
+        'auth' => \Sahil\Http\Middleware\Authenticate::class,
+        'token' => \Sahil\Http\Middleware\RequireTokenAbility::class,
+        'throttle' => \Sahil\Http\Middleware\Throttle::class,
+    ];
 
     /** @var callable(Throwable, Request): ?Response|null */
     private $exceptionHandler = null;
@@ -94,6 +111,13 @@ final class Kernel
      */
     public function handle(Request $request): Response
     {
+        // Drop any request-scoped principal left by a previous request in
+        // this worker. `resolved()` — not `has()`/`make()` — so a bound
+        // but never-constructed AuthManager is never built just to reset.
+        if ($this->container->resolved(\Sahil\Auth\AuthManager::class)) {
+            $this->container->make(\Sahil\Auth\AuthManager::class)->resetRequestPrincipal();
+        }
+
         return $this->application->isolatedRequest(function () use ($request): Response {
             try {
                 // Reject unsupported content types with 415; requests without a
@@ -115,9 +139,17 @@ final class Kernel
 
                 return $this->finalizeFrontend($this->runPipeline($request));
             } catch (HttpException $exception) {
-                return $this->handleRendered($this->errorRenderer()->respond($exception, $request, $this->debug), $exception, $request);
+                return $this->handleRendered($this->renderError($exception, $request), $exception, $request);
             } catch (Throwable $throwable) {
-                return $this->handleRendered($this->errorRenderer()->respond($throwable, $request, $this->debug), $throwable, $request);
+                // Validation failures are first-class responses — a 303
+                // redirect back with flashed errors/old input for
+                // browsers, a 422 JSON payload for API clients — not
+                // server errors. Everything else renders normally.
+                $fallback = $throwable instanceof ValidationException
+                    ? $this->respondValidation($throwable, $request)
+                    : $this->renderError($throwable, $request);
+
+                return $this->handleRendered($fallback, $throwable, $request);
             }
         });
     }
@@ -153,6 +185,11 @@ final class Kernel
     /**
      * Give the application exception handler (when installed) the chance
      * to replace the built-in rendering; a null return keeps the fallback.
+     *
+     * A handler that itself throws — a dead log sink, a broken custom
+     * renderer — must not escape the request lifecycle while an error is
+     * already being reported, so any failure here degrades to the built-in
+     * response instead of becoming a second uncaught exception.
      */
     private function handleRendered(Response $fallback, Throwable $throwable, Request $request): Response
     {
@@ -160,7 +197,158 @@ final class Kernel
             return $fallback;
         }
 
-        return ($this->exceptionHandler)($throwable, $request) ?? $fallback;
+        try {
+            return ($this->exceptionHandler)($throwable, $request) ?? $fallback;
+        } catch (Throwable $handlerFailure) {
+            // A handler may deliberately rethrow the original throwable (the
+            // test kit's withoutExceptionHandling() relies on that); that is
+            // honored. Any *other* failure — a dead log sink, a broken custom
+            // renderer — degrades to the built-in response instead of
+            // escaping the request lifecycle as a second uncaught exception.
+            if ($handlerFailure === $throwable) {
+                throw $handlerFailure;
+            }
+
+            return $fallback;
+        }
+    }
+
+    /**
+     * Turn a {@see ValidationException} into the response the request asks
+     * for: `422` JSON for API clients, a `303` redirect back with flashed
+     * error bag + sanitized old input for browsers.
+     *
+     * The redirect target is the exception's explicit override, else the
+     * Referer's path (its host is stripped on purpose — a redirect built
+     * from request input must never leave the application), else the
+     * request path itself.
+     */
+    private function respondValidation(ValidationException $exception, Request $request): Response
+    {
+        $errors = $exception->result()->errors();
+
+        if (ErrorRenderer::expectsJson($request)) {
+            $first = null;
+
+            foreach ($errors as $messages) {
+                $first = $messages[0] ?? null;
+                break;
+            }
+
+            return Response::json([
+                'message' => $first ?? $exception->getMessage(),
+                'errors' => $errors,
+            ], 422);
+        }
+
+        $response = Response::redirect($this->backTarget($exception, $request), 303);
+
+        if (!$this->container->bound(SessionContract::class)) {
+            return $response;
+        }
+
+        /** @var SessionContract $session */
+        $session = $this->container->make(SessionContract::class);
+        $session->startFromRequest($request); // no-op when StartSession already ran
+
+        $session->flash('errors', [$exception->bag() ?? 'default' => $errors]);
+        $session->flash('old', self::safeOldInput(
+            $exception->input() !== [] ? $exception->input() : FormInput::fromRequest($request),
+        ));
+
+        // The exception unwound StartSession's save/cookie step, so the
+        // flash is persisted and the session cookie attached here.
+        $session->save();
+
+        return $session->applyCookieToResponse($response);
+    }
+
+    /**
+     * Where a failed browser submission goes back to.
+     */
+    private function backTarget(ValidationException $exception, Request $request): string
+    {
+        if ($exception->redirectTo() !== null) {
+            return $exception->redirectTo();
+        }
+
+        $referer = $request->header('Referer');
+
+        if (is_string($referer) && $referer !== '') {
+            $parts = parse_url($referer);
+
+            if (is_array($parts) && ($parts['path'] ?? '') !== '') {
+                return $parts['path'].(isset($parts['query']) ? '?'.$parts['query'] : '');
+            }
+        }
+
+        $path = $request->path();
+
+        return $path !== '' ? $path : '/';
+    }
+
+    /**
+     * Old input minus everything that must never be written back to a
+     * form (or a session): credentials, tokens and secrets by key name.
+     *
+     * @param array<string, mixed> $input
+     *
+     * @return array<string, mixed>
+     */
+    private static function safeOldInput(array $input): array
+    {
+        $safe = [];
+
+        foreach ($input as $key => $value) {
+            if (preg_match('/password|token|secret|csrf/i', (string) $key) === 1) {
+                continue;
+            }
+
+            // Scalars and scalar lists only — a nested structure could
+            // carry a sensitive subtree the key name did not reveal.
+            if (!is_scalar($value)
+                && !(is_array($value) && self::onlyScalars($value))) {
+                continue;
+            }
+
+            $safe[$key] = $value;
+        }
+
+        return $safe;
+    }
+
+    /** @param array<array-key, mixed> $values */
+    private static function onlyScalars(array $values): bool
+    {
+        foreach ($values as $value) {
+            if (!is_scalar($value) && $value !== null) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Render the throwable, with a last-resort answer when even the error
+     * pipeline fails: rendering an error must never raise a second one, so
+     * the worst possible outcome is the bare JSON contract instead of an
+     * exception escaping {@see handle()}.
+     */
+    private function renderError(Throwable $throwable, Request $request): Response
+    {
+        try {
+            return $this->errorRenderer()->respond($throwable, $request, $this->debug);
+        } catch (Throwable) {
+            $status = ExceptionDiagnostics::status($throwable);
+
+            return Response::json(
+                $throwable instanceof HttpException
+                    ? ['error' => 'http_error', 'status' => $status]
+                    : ['error' => 'server_error', 'message' => 'An unexpected server error occurred.'],
+                $status,
+            );
+        }
     }
 
     /**
@@ -177,10 +365,55 @@ final class Kernel
      */
     private function runPipeline(Request $request): Response
     {
-        $match = $this->router->match($request);
+        // Global middleware wraps the whole dispatch — including route
+        // matching — so request-level concerns (sessions, CSRF, locale
+        // selection) apply to error responses for unmatched paths too.
+        $dispatch = function () use ($request): Response {
+            $match = $this->router->match($request);
 
-        $pipeline = fn (): Response => $this->dispatchHandler($request, $match);
+            return self::pipelineRunner(
+                fn (): Response => $this->dispatchHandler($request, $match),
+                $this->routeMiddleware($match),
+            )($request);
+        };
 
+        return self::pipelineRunner($dispatch, $this->globalMiddleware)($request);
+    }
+
+    /**
+     * Register a named middleware alias for route definitions:
+     *
+     *     $kernel->middlewareAlias('ability', Authorize::class);
+     *
+     *     ->middleware('ability:update-post,{post}')
+     *
+     * The `ability` alias is pre-registered — it is Bouncer's stable
+     * route-level entry point.
+     */
+    public function middlewareAlias(string $alias, string $class): self
+    {
+        $alias = trim($alias);
+
+        if ($alias === '' || str_contains($alias, ':')) {
+            throw new \InvalidArgumentException(sprintf(
+                'HTTP middleware alias [%s] must be a non-empty name without a colon.',
+                $alias,
+            ));
+        }
+
+        $clone = clone $this;
+        $clone->middlewareAliases[$alias] = $class;
+
+        return $clone;
+    }
+
+    /**
+     * Resolve the matched route's middleware specs into instances.
+     *
+     * @return list<MiddlewareContract> outermost-first
+     */
+    private function routeMiddleware(RouteMatch $match): array
+    {
         /** @var list<MiddlewareContract> $stack outermost-first */
         $stack = [];
 
@@ -195,7 +428,16 @@ final class Kernel
             // kernel passes none to handle()); it resolves inside this
             // request scope, so nothing request-specific is captured earlier.
             if ($spec instanceof MiddlewareSpec) {
-                $stack[] = $spec->resolve($this->container);
+                $stack[] = $this->resolveSpec($spec, $match);
+
+                continue;
+            }
+
+            // `alias:param,param` resolves a registered middleware alias —
+            // `ability:update-post,{post}` is the canonical example.
+            if (is_string($spec)
+                && ($aliasSpec = $this->resolveAlias($spec, $match)) !== null) {
+                $stack[] = $this->resolveSpec($aliasSpec, $match);
 
                 continue;
             }
@@ -211,9 +453,63 @@ final class Kernel
             $stack[] = $resolved;
         }
 
-        $inner = self::pipelineRunner($pipeline, [...$this->globalMiddleware, ...$stack]);
+        return $stack;
+    }
 
-        return $inner($request);
+    /**
+     * Resolve an `alias:param,param` route middleware string into a spec,
+     * or null when the string is not an alias reference.
+     */
+    private function resolveAlias(string $spec, RouteMatch $match): ?MiddlewareSpec
+    {
+        if (!str_contains($spec, ':')) {
+            return null;
+        }
+
+        [$alias, $parameters] = explode(':', $spec, 2);
+        $alias = trim($alias);
+
+        if (!isset($this->middlewareAliases[$alias])) {
+            return null;
+        }
+
+        $values = $parameters === ''
+            ? []
+            : array_map('trim', explode(',', $parameters));
+
+        return new MiddlewareSpec($this->middlewareAliases[$alias], $values);
+    }
+
+    /**
+     * Resolve a spec, substituting `{placeholder}` parameters with the
+     * matched route's parameters (wrapped in {@see RouteArgument} so the
+     * middleware can tell resource arguments from its own settings).
+     */
+    private function resolveSpec(MiddlewareSpec $spec, RouteMatch $match): MiddlewareContract
+    {
+        $parameters = [];
+
+        foreach ($spec->parameters() as $parameter) {
+            if (is_string($parameter)
+                && preg_match('/^\{([A-Za-z_][A-Za-z0-9_-]*)\}$/', $parameter, $found) === 1) {
+                $name = $found[1];
+
+                if (!array_key_exists($name, $match->params())) {
+                    throw new \RuntimeException(sprintf(
+                        'HTTP: route middleware references {%s}, but the matched route has no such parameter.',
+                        $name,
+                    ));
+                }
+
+                $parameters[] = new RouteArgument($name, $match->params()[$name]);
+
+                continue;
+            }
+
+            $parameters[] = $parameter;
+        }
+
+        return (new MiddlewareSpec($spec->middlewareClass(), $parameters))->resolve($this->container);
     }
 
     /**
@@ -238,15 +534,14 @@ final class Kernel
     {
         $handler = $match->route()->handler();
 
-        if ($handler instanceof Closure) {
-            return ($handler)($request, $match->params());
+        $response = $handler instanceof Closure
+            ? ($handler)($request, $match->params())
+            : $this->container->make($handler[0])->{$handler[1]}($request, $match->params());
+
+        // API resources render through the normal response path.
+        if ($response instanceof Resources\Resource || $response instanceof Resources\ResourceCollection) {
+            $response = $response->toResponse();
         }
-
-        [$class, $method] = $handler;
-
-        $controller = $this->container->make($class);
-
-        $response = $controller->{$method}($request, $match->params());
 
         if (!$response instanceof Response) {
             throw new \RuntimeException(

@@ -113,6 +113,21 @@ final class Task
         return $this->cron(sprintf('*/%d * * * *', $minutes));
     }
 
+    public function everyFiveMinutes(): self
+    {
+        return $this->every(5);
+    }
+
+    public function everyFifteenMinutes(): self
+    {
+        return $this->every(15);
+    }
+
+    public function everyThirtyMinutes(): self
+    {
+        return $this->every(30);
+    }
+
     public function hourly(): self
     {
         return $this->cron('0 * * * *');

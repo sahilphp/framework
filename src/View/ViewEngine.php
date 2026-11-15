@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Sahil\View;
 
 use Sahil\Contracts\Assets\AssetManagerContract;
+use Sahil\Contracts\Session\SessionContract;
 use Sahil\Contracts\View\ComponentRendererContract;
 use Sahil\Contracts\View\RenderingViewContract;
+use Sahil\Validation\ViewErrorBag;
 use Throwable;
 
 /**
@@ -81,8 +83,24 @@ final class ViewEngine implements RenderingViewContract
      *
      * @param array<string, mixed> $data
      */
+    /**
+     * The application this engine renders for, when one is configured.
+     * Template helpers that reach services (session, router, translator)
+     * resolve through it; standalone engines return null and helpers that
+     * need an application fail with a clear error instead of a fatal.
+     */
+    public function app(): ?\Sahil\Foundation\Application
+    {
+        return \Sahil\Foundation\Application::peek();
+    }
+
     public function renderView(string $view, array $data = []): RenderedView
     {
+        // Request-shared data — flashed error bags, old input and the
+        // CSRF token for this render — is merged UNDER the caller's data,
+        // so controllers can still hand any of these names explicitly.
+        $data = [...$this->requestSharedData(), ...$data];
+
         $sections = new SectionBag();
         $visited = [];
         $current = $view;
@@ -117,6 +135,55 @@ final class ViewEngine implements RenderingViewContract
             'engine' => 'sahil',
             'path' => $this->resolver->resolve($view),
         ]);
+    }
+
+    /**
+     * Data every template gets without the controller passing it:
+     *
+     *  - `errors` — the flashed {@see ViewErrorBag} (empty when nothing
+     *    failed; unprefixed access hits the default bag);
+     *  - `old` — sanitized input flashed by the previous request;
+     *  - `csrf_token` — a freshly issued CSRF token. Rendering a page IS
+     *    the token-refresh event: previously issued tokens stay valid
+     *    through the session's bounded history ring.
+     *
+     * Outside a session-backed request the share degrades to empty
+     * values, so templates never need isset guards for `errors`/`old`.
+     *
+     * @return array<string, mixed>
+     */
+    private function requestSharedData(): array
+    {
+        $shared = [
+            'errors' => new ViewErrorBag(),
+            'old' => [],
+        ];
+
+        $app = $this->app();
+
+        if ($app === null || !$app->container()->bound(SessionContract::class)) {
+            return $shared;
+        }
+
+        try {
+            /** @var SessionContract $session */
+            $session = $app->container()->make(SessionContract::class);
+        } catch (Throwable) {
+            return $shared;
+        }
+
+        if (!$session->isStarted()) {
+            return $shared;
+        }
+
+        $bags = $session->getFlash('errors', []);
+        $old = $session->getFlash('old', []);
+
+        $shared['errors'] = new ViewErrorBag(is_array($bags) ? $bags : []);
+        $shared['old'] = is_array($old) ? $old : [];
+        $shared['csrf_token'] = $session->issueToken();
+
+        return $shared;
     }
 
     public function exists(string $view): bool

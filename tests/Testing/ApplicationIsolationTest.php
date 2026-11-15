@@ -8,7 +8,7 @@ use PHPUnit\Framework\Attributes\Depends;
 use Sahil\Foundation\Application;
 use Sahil\Foundation\ServiceProvider;
 use Sahil\Http\Response;
-use Sahil\Http\Route;
+use Sahil\Routing\Link;
 use Sahil\Http\Router;
 use Sahil\Tests\FrameworkTestCase;
 use stdClass;
@@ -91,7 +91,7 @@ final class ApplicationIsolationTest extends FrameworkTestCase
     {
         $this->withRoutes(static function (Router $router): void {
             $router->register(
-                Route::get('/health', static fn (): Response => Response::json(['status' => 'ok'], 200)),
+                Link::get('/health', static fn (): Response => Response::json(['status' => 'ok'], 200)),
             );
         });
 

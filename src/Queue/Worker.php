@@ -12,6 +12,7 @@ use Sahil\Contracts\Queue\Jobs\JobContract;
 use Sahil\Contracts\Queue\QueueContract;
 use Sahil\Contracts\Queue\QueuedJob;
 use Sahil\Queue\Failed\FailedJob;
+use Sahil\Support\Logging\LoggerContract;
 use Throwable;
 
 /**
@@ -47,6 +48,7 @@ final class Worker
         ?Closure $clock = null,
         /** @var list<class-string> $allowedJobClasses */
         private readonly array $allowedJobClasses = [],
+        private readonly ?LoggerContract $logger = null,
     ) {
         $this->clock = $clock ?? static fn (): DateTimeImmutable => new DateTimeImmutable('now', new DateTimeZone('UTC'));
     }
@@ -108,15 +110,38 @@ final class Worker
             return;
         }
 
+        $started = microtime(true);
+        $this->logger?->debug('Job started', [
+            'job' => $job::class,
+            'queue' => $reserved->queue,
+            'attempt' => $reserved->attempts + 1,
+            'job_id' => $reserved->id,
+        ]);
+
         try {
             $job->handle();
         } catch (Throwable $failure) {
+            $this->logger?->error('Job failed', [
+                'job' => $job::class,
+                'queue' => $reserved->queue,
+                'attempt' => $reserved->attempts + 1,
+                'job_id' => $reserved->id,
+                'duration_ms' => (int) ((microtime(true) - $started) * 1000),
+                'exception' => $failure::class.': '.$failure->getMessage(),
+            ]);
             $this->handleFailure($reserved, $job, $failure);
 
             return;
         }
 
         $this->queue->delete($reserved->id);
+        $this->logger?->info('Job completed', [
+            'job' => $job::class,
+            'queue' => $reserved->queue,
+            'attempt' => $reserved->attempts + 1,
+            'job_id' => $reserved->id,
+            'duration_ms' => (int) ((microtime(true) - $started) * 1000),
+        ]);
     }
 
     private function handleFailure(QueuedJob $reserved, JobContract $job, Throwable $failure): void

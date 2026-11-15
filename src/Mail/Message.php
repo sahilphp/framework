@@ -48,6 +48,12 @@ final class Message
     /** @var array<string, string> */
     private array $headers = [];
 
+    /** @var list<Attachment> */
+    private array $attachments = [];
+
+    /** @var int counter backing deterministic inline content-ids */
+    private int $attachmentSeq = 0;
+
     private function __construct()
     {
     }
@@ -227,6 +233,59 @@ final class Message
     public function headers(): array
     {
         return $this->headers;
+    }
+
+    /* ---------- attachments ---------- */
+
+    /**
+     * Attach a file by path (streamed at send time) or an
+     * {@see Attachment} built by hand.
+     */
+    public function attach(Attachment|string $attachment, ?string $name = null, ?string $mime = null): self
+    {
+        $this->attachments[] = is_string($attachment)
+            ? Attachment::fromPath($attachment, $name, $mime)
+            : $attachment;
+
+        return $this;
+    }
+
+    /** Attach in-memory contents under a filename. */
+    public function attachData(string $body, string $name, ?string $mime = null): self
+    {
+        $this->attachments[] = Attachment::fromData($body, $name, $mime);
+
+        return $this;
+    }
+
+    /**
+     * Embed a file for the HTML body and return its content-id, so markup
+     * can reference it as `<img src="cid:...">` before the message is sent.
+     */
+    public function embed(Attachment|string $attachment, ?string $name = null, ?string $mime = null): string
+    {
+        $contentId = sprintf('attach-%d@sahil.mail', ++$this->attachmentSeq);
+
+        $this->attachments[] = is_string($attachment)
+            ? Attachment::fromPath($attachment, $name, $mime, true, $contentId)
+            : $attachment->asInline($attachment->contentId ?? $contentId);
+
+        return $contentId;
+    }
+
+    /** Embed in-memory contents; returns the content-id as {@see embed()}. */
+    public function embedData(string $body, string $name, ?string $mime = null): string
+    {
+        $contentId = sprintf('attach-%d@sahil.mail', ++$this->attachmentSeq);
+        $this->attachments[] = Attachment::fromData($body, $name, $mime, true, $contentId);
+
+        return $contentId;
+    }
+
+    /** @return list<Attachment> */
+    public function attachments(): array
+    {
+        return $this->attachments;
     }
 
     /* ---------- validation ---------- */

@@ -43,12 +43,20 @@ final class FileLogger implements StructuredLoggerContract
      * @param string $path log file (created on first write; parent dir must exist)
      * @param string $threshold lowest severity to keep, one of SEVERITY keys
      */
-    public function __construct(string $path, string $threshold = 'debug')
-    {
+    public function __construct(
+        string $path,
+        string $threshold = 'debug',
+        private readonly string $format = 'json',
+        private readonly string $channel = 'file',
+    ) {
         if (!array_key_exists($threshold, self::SEVERITY)) {
             throw new \OutOfRangeException(
                 sprintf('Unknown log threshold [%s]; use one of: %s.', $threshold, implode(', ', self::severityList())),
             );
+        }
+
+        if (!in_array($format, ['json', 'line'], true)) {
+            throw new \OutOfRangeException(sprintf('Unknown log format [%s] — use json|line.', $format));
         }
 
         $this->path = $path;
@@ -72,6 +80,7 @@ final class FileLogger implements StructuredLoggerContract
         $this->write([
             'timestamp' => gmdate('c'),
             'level' => $level,
+            'channel' => $this->channel,
             'message' => $message,
             'context' => Redactor::flattenSafely($context),
         ]);
@@ -112,7 +121,11 @@ final class FileLogger implements StructuredLoggerContract
      */
     private function write(array $event): void
     {
-        $line = json_encode($event, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)."\n";
+        $event['channel'] ??= $this->channel;
+
+        $line = $this->format === 'json'
+            ? json_encode($event, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)."\n"
+            : LogLineFormatter::render($event);
 
         if (@file_put_contents($this->path, $line, FILE_APPEND | LOCK_EX) === false) {
             throw new RuntimeException(sprintf('Logger could not append to [%s].', $this->path));

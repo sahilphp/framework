@@ -15,6 +15,11 @@ use Sahil\Contracts\Auth\AuthenticatableContract;
  *
  * Gates provide a flexible way to define authorization logic without
  * requiring full policy classes.
+ *
+ * @deprecated Use {@see Bouncer} — the framework's authorization
+ *             authority — for all new code. Gate remains for backward
+ *             compatibility; BouncerManager preserves its semantics
+ *             (exact names, deny-by-default, stored-permission fallback).
  */
 final class Gate
 {

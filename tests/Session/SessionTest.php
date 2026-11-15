@@ -370,4 +370,61 @@ final class SessionTest extends TestCase
 
         @rmdir($path);
     }
+    public function test_mutations_after_save_are_persisted_by_next_save(): void
+    {
+        // Regression: put()/forget() previously left `saved` true, so a
+        // mid-request save() followed by later mutations silently dropped
+        // them on the final save().
+        $session = new Session($this->driver);
+        $session->put('a', 1);
+        $session->save();
+        $id = $session->id();
+
+        $session->put('b', 2);
+        $session->forget('a');
+        $session->pull('nonexistent');
+        $session->flush();
+        $session->put('final', 'yes');
+        $session->save();
+
+        $fresh = new Session($this->driver);
+        $data = $this->driver->read($id);
+        self::assertSame('yes', $data['final'] ?? null);
+        self::assertArrayNotHasKey('a', $data);
+        self::assertSame($id, $session->id());
+    }
+
+    public function test_sequential_requests_in_one_process_do_not_leak(): void
+    {
+        // Worker-safety: a second request must never see request one's data.
+        $session = new Session($this->driver);
+
+        $session->setName('test_session');
+        $r1 = Request::fromGlobals(
+            server: ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/'],
+            cookies: [],
+        );
+        $session->startFromRequest($r1);
+        $session->put('user', 'alice');
+        $session->save();
+        $id1 = $session->id();
+
+        // Second request, no cookie → fresh session, not alice's.
+        $r2 = Request::fromGlobals(
+            server: ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/'],
+            cookies: [],
+        );
+        $session->startFromRequest($r2);
+        self::assertNotSame($id1, $session->id());
+        self::assertFalse($session->has('user'));
+
+        // Third request WITH the cookie → alice's data returns.
+        $r3 = Request::fromGlobals(
+            server: ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/'],
+            cookies: ['test_session' => $id1],
+        );
+        $session->startFromRequest($r3);
+        self::assertSame($id1, $session->id());
+        self::assertSame('alice', $session->get('user'));
+    }
 }

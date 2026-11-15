@@ -29,6 +29,14 @@ final class ExpressionCompiler
         'join' => ['method' => 'join', 'arity' => 2],
         'asset' => ['method' => 'asset', 'arity' => 1, 'context' => true],
         'csrf_field' => ['method' => 'csrfField', 'arity' => 0, 'context' => true],
+        'csrf_token' => ['method' => 'csrfToken', 'arity' => 0, 'context' => true],
+        'link' => ['method' => 'link', 'arity' => 1, 'optional' => 1, 'context' => true],
+        'error' => ['method' => 'error', 'arity' => 1, 'optional' => 1, 'context' => true],
+        'can' => ['method' => 'can', 'arity' => 1, 'variadic' => true, 'context' => true],
+        'cannot' => ['method' => 'cannot', 'arity' => 1, 'variadic' => true, 'context' => true],
+        '__' => ['method' => 'translate', 'arity' => 1, 'optional' => 2],
+        'trans' => ['method' => 'translate', 'arity' => 1, 'optional' => 2],
+        'trans_choice' => ['method' => 'transChoice', 'arity' => 2, 'optional' => 2],
     ];
 
     /** @var list<array{type: string, value: string}> */
@@ -535,16 +543,18 @@ final class ExpressionCompiler
         $this->expectPunct(')');
 
         $definition = self::FUNCTIONS[$lower];
-        $expected = $definition['arity'];
+        $minimum = $definition['arity'];
+        $maximum = ($definition['variadic'] ?? false)
+            ? PHP_INT_MAX
+            : $minimum + ($definition['optional'] ?? 0);
+        $given = count($arguments);
 
-        if (count($arguments) !== $expected) {
-            throw $this->error(sprintf(
-                '%s() takes exactly %d argument%s, %d given.',
-                $name,
-                $expected,
-                $expected === 1 ? '' : 's',
-                count($arguments),
-            ));
+        if ($given < $minimum || $given > $maximum) {
+            throw $this->error(match (true) {
+                $minimum === $maximum => sprintf('%s() takes exactly %d argument%s, %d given.', $name, $minimum, $minimum === 1 ? '' : 's', $given),
+                $maximum === PHP_INT_MAX => sprintf('%s() takes at least %d argument%s, %d given.', $name, $minimum, $minimum === 1 ? '' : 's', $given),
+                default => sprintf('%s() takes between %d and %d arguments, %d given.', $name, $minimum, $maximum, $given),
+            });
         }
 
         $arguments = implode(', ', $arguments);

@@ -199,6 +199,154 @@ final class GeneratorCommandsTest extends TestCase
         self::assertInstanceOf(\Sahil\Orm\Model::class, new \Acme\Models\Billing\Invoice());
     }
 
+    public function test_model_shorthand_and_long_options_generate_related_files(): void
+    {
+        // -m shorthand: model + migration, no controller.
+        [$exit, $out] = $this->runConsole(['unda:model', 'Page', '-m']);
+        self::assertSame(0, $exit);
+        self::assertStringContainsString('src/Models/Page.php', $out);
+        self::assertStringContainsString('create_pages_table.php', $out);
+        self::assertFileDoesNotExist($this->root.'/src/Http/Controllers/PageController.php');
+
+        // -c shorthand: model + plain controller, no migration.
+        [$exit, $out] = $this->runConsole(['unda:model', 'Note', '-c']);
+        self::assertSame(0, $exit);
+        self::assertFileExists($this->root.'/src/Http/Controllers/NoteController.php');
+        $contents = (string) file_get_contents($this->root.'/src/Http/Controllers/NoteController.php');
+        self::assertStringContainsString('namespace Acme\\Http\\Controllers;', $contents);
+        self::assertStringNotContainsString('public function store', $contents, 'plain controller has no resource actions');
+        self::assertCount(0, glob($this->root.'/database/migrations/*_create_notes_table.php') ?: []);
+
+        // --controller long form.
+        [$exit] = $this->runConsole(['unda:model', 'Idea', '--controller']);
+        self::assertSame(0, $exit);
+        self::assertFileExists($this->root.'/src/Http/Controllers/IdeaController.php');
+
+        // -cm combined: model + controller + migration.
+        [$exit, $out] = $this->runConsole(['unda:model', 'Order', '-cm']);
+        self::assertSame(0, $exit);
+        self::assertFileExists($this->root.'/src/Models/Order.php');
+        self::assertFileExists($this->root.'/src/Http/Controllers/OrderController.php');
+        self::assertCount(1, glob($this->root.'/database/migrations/*_create_orders_table.php') ?: []);
+
+        // --controller --migration long combination.
+        [$exit] = $this->runConsole(['unda:model', 'Ticket', '--controller', '--migration']);
+        self::assertSame(0, $exit);
+        self::assertFileExists($this->root.'/src/Http/Controllers/TicketController.php');
+        self::assertCount(1, glob($this->root.'/database/migrations/*_create_tickets_table.php') ?: []);
+    }
+
+    public function test_model_cmr_generates_a_single_resourceful_controller(): void
+    {
+        [$exit, $out] = $this->runConsole(['unda:model', 'User', '-cmr']);
+
+        self::assertSame(0, $exit);
+        self::assertStringContainsString('src/Models/User.php', $out);
+        self::assertStringContainsString('src/Http/Controllers/UserController.php', $out);
+        self::assertStringContainsString('create_users_table.php', $out);
+
+        // Exactly one controller: the resourceful one.
+        $controllers = glob($this->root.'/src/Http/Controllers/User*.php') ?: [];
+        self::assertSame([$this->root.'/src/Http/Controllers/UserController.php'], $controllers);
+
+        $this->assertResourceful($this->root.'/src/Http/Controllers/UserController.php');
+
+        // The long form produces the equivalent result.
+        [$exit] = $this->runConsole(['unda:model', 'Customer', '--controller', '--migration', '--resource']);
+        self::assertSame(0, $exit);
+        $this->assertResourceful($this->root.'/src/Http/Controllers/CustomerController.php');
+        self::assertCount(1, glob($this->root.'/database/migrations/*_create_customers_table.php') ?: []);
+
+        // -r on its own implies the resourceful controller.
+        [$exit] = $this->runConsole(['unda:model', 'Widget', '-r']);
+        self::assertSame(0, $exit);
+        $this->assertResourceful($this->root.'/src/Http/Controllers/WidgetController.php');
+    }
+
+    public function test_resourceful_controllers_from_all_option_forms(): void
+    {
+        foreach ([['-r'], ['--resources'], ['--resource']] as $index => $flags) {
+            $name = 'Variant'.$index.'Controller';
+            [$exit] = $this->runConsole(array_merge(['unda:controller', $name], $flags));
+
+            self::assertSame(0, $exit, 'flags: '.implode(' ', $flags));
+            $this->assertResourceful($this->root.'/src/Http/Controllers/'.$name.'.php');
+        }
+    }
+
+    public function test_nested_model_generates_matching_nested_controller_and_table(): void
+    {
+        [$exit, $out] = $this->runConsole(['unda:model', 'Billing/Invoice', '-cmr']);
+
+        self::assertSame(0, $exit);
+        self::assertFileExists($this->root.'/src/Models/Billing/Invoice.php');
+        self::assertFileExists($this->root.'/src/Http/Controllers/Billing/InvoiceController.php');
+        self::assertStringContainsString('create_invoices_table.php', $out);
+
+        $controller = (string) file_get_contents($this->root.'/src/Http/Controllers/Billing/InvoiceController.php');
+        self::assertStringContainsString('namespace Acme\\Http\\Controllers\\Billing;', $controller);
+        $this->assertResourceful($this->root.'/src/Http/Controllers/Billing/InvoiceController.php');
+    }
+
+    public function test_composable_generation_is_atomic_on_conflict(): void
+    {
+        // A lone migration colliding with the requested -cmr set: nothing is written.
+        self::assertTrue(mkdir($this->root.'/database/migrations', 0o700, true));
+        file_put_contents(
+            $this->root.'/database/migrations/2026_01_01_000000_create_conflicts_table.php',
+            "<?php\n",
+        );
+
+        [$exit, , $err] = $this->runConsole(['unda:model', 'Conflict', '-cmr']);
+
+        self::assertSame(1, $exit);
+        self::assertStringContainsString('already exists', $err);
+        self::assertStringContainsString('create_conflicts_table', $err);
+        self::assertFileDoesNotExist($this->root.'/src/Models/Conflict.php');
+        self::assertFileDoesNotExist($this->root.'/src/Http/Controllers/ConflictController.php');
+    }
+
+    public function test_invalid_shorthand_and_flag_values_fail_loudly(): void
+    {
+        [$exit, , $err] = $this->runConsole(['unda:model', 'Thing', '-x']);
+        self::assertSame(1, $exit);
+        self::assertStringContainsString('unknown option [-x]', $err);
+
+        [$exit, , $err] = $this->runConsole(['unda:model', 'Thing', '-mx']);
+        self::assertSame(1, $exit);
+        self::assertStringContainsString('unknown option [-x]', $err);
+        self::assertFileDoesNotExist($this->root.'/src/Models/Thing.php');
+
+        [$exit, , $err] = $this->runConsole(['unda:controller', 'Thing', '--resources=yes']);
+        self::assertSame(1, $exit);
+        self::assertStringContainsString('--resources does not take a value', $err);
+
+        // -r is not a middleware option.
+        [$exit, , $err] = $this->runConsole(['unda:middleware', 'Thing', '-r']);
+        self::assertSame(1, $exit);
+    }
+
+    public function test_generator_help_documents_the_composable_options(): void
+    {
+        [$exit, $out] = $this->runConsole(['unda:model', '--help']);
+        self::assertSame(0, $exit);
+        self::assertStringContainsString('-m, --migration', $out);
+        self::assertStringContainsString('-c, --controller', $out);
+        self::assertStringContainsString('-r, --resource', $out);
+        self::assertStringContainsString('-cmr', $out);
+        self::assertStringContainsString('php sahil unda:model User -cmr', $out);
+
+        // Option descriptions are printed once, not once per alias.
+        self::assertSame(1, substr_count($out, '-m, --migration'));
+        self::assertSame(1, substr_count($out, '-c, --controller'));
+        self::assertSame(1, substr_count($out, '-r, --resource'));
+
+        [$exit, $out] = $this->runConsole(['unda:controller', '--help']);
+        self::assertSame(0, $exit);
+        self::assertStringContainsString('-r, --resources', $out);
+        self::assertStringContainsString('--resource', $out);
+    }
+
     public function test_middleware_policy_provider_command_and_seeder_implement_real_contracts(): void
     {
         [$exit, $middlewareOut] = $this->runConsole(['unda:middleware', 'Authenticate']);
@@ -410,6 +558,23 @@ final class GeneratorCommandsTest extends TestCase
         exec(escapeshellarg(PHP_BINARY).' -l '.escapeshellarg($file).' 2>&1', $output, $status);
 
         self::assertSame(0, $status, implode("\n", $output));
+    }
+
+    private function assertResourceful(string $file): void
+    {
+        self::assertFileExists($file);
+        $this->assertLint($file);
+
+        $contents = (string) file_get_contents($file);
+
+        foreach (['index', 'create', 'store', 'show', 'edit', 'update', 'destroy'] as $action) {
+            self::assertStringContainsString('function '.$action.'(', $contents, 'missing resource action '.$action);
+        }
+
+        self::assertStringContainsString('use Sahil\\Http\\Request;', $contents);
+        self::assertStringContainsString('use Sahil\\Http\\Response;', $contents);
+        self::assertStringNotContainsString('extends BaseController', $contents, 'no invented base class');
+        self::assertStringNotContainsString('Illuminate\\', $contents, 'no Laravel APIs');
     }
 
     private function removeDirectory(string $path): void

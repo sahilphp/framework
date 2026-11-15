@@ -13,7 +13,7 @@ use Sahil\Http\Exception\HttpException;
 use Sahil\Http\Exception\NotFoundHttpException;
 use Sahil\Http\Kernel;
 use Sahil\Http\Request;
-use Sahil\Http\Route;
+use Sahil\Routing\Link;
 use Sahil\Http\Router;
 use Sahil\View\TemplateCompiler;
 use Sahil\View\TemplateResolver;
@@ -47,8 +47,8 @@ final class ErrorPagesTest extends TestCase
 
         self::assertStringContainsString('<!doctype html>', $body);
         self::assertStringContainsString('404', $body);
-        self::assertStringContainsString('This page could not be found', $body);
-        self::assertStringContainsString('Back to home', $body);
+        self::assertStringContainsString('Ukurasa huu haujapatikana', $body);
+        self::assertStringContainsString('Rudi kwenye ukurasa wa mwanzo', $body);
         self::assertStringNotContainsString('http_error', $body);
     }
 
@@ -79,7 +79,7 @@ final class ErrorPagesTest extends TestCase
         $production = $this->kernel()->handle(self::request('/boom'));
 
         self::assertSame(500, $production->status());
-        self::assertStringContainsString('Something went wrong on our end', $production->body());
+        self::assertStringContainsString('Kuna jambo lililokwenda mrama upande wetu', $production->body());
         self::assertStringNotContainsString('database fallen over', $production->body());
         self::assertStringNotContainsString('RuntimeException', $production->body());
 
@@ -90,15 +90,110 @@ final class ErrorPagesTest extends TestCase
         self::assertStringContainsString('RuntimeException', $debug->body());
     }
 
-    public function test_json_debug_payload_stays_unchanged(): void
+    public function test_json_debug_payload_is_a_structured_diagnostic_document(): void
     {
         $response = $this->kernel(debug: true)->handle(
             self::request('/boom', headers: ['Accept' => 'application/json']),
         );
 
         self::assertSame(500, $response->status());
+        self::assertSame('application/json', $response->header('Content-Type'));
+
+        /** @var array{error: array{type: string, message: string, file: string, line: int, status: int, previous: mixed, trace: list<string>}} $payload */
+        $payload = json_decode($response->body(), true, 512, JSON_THROW_ON_ERROR);
+        $error = $payload['error'];
+
+        self::assertSame('RuntimeException', $error['type']);
+        self::assertSame('database fallen over', $error['message']);
+        self::assertSame(500, $error['status']);
+        self::assertStringContainsString('ErrorPagesTest.php', $error['file']);
+        self::assertGreaterThan(0, $error['line']);
+        self::assertNotSame([], $error['trace'], 'the trace carries real frames, not a placeholder');
+        self::assertStringContainsString('dispatchHandler', implode("\n", $error['trace']));
+    }
+
+    public function test_json_debug_payload_preserves_the_previous_cause_chain(): void
+    {
+        $router = new Router();
+        $router->register(Link::get('/nested', static function (): never {
+            try {
+                throw new \PDOException('Connection refused');
+            } catch (\PDOException $cause) {
+                throw new \RuntimeException('Database connection failed.', 0, $cause);
+            }
+        }));
+
+        $response = $this->kernel($router, debug: true)->handle(
+            self::request('/nested', headers: ['Accept' => 'application/json']),
+        );
+
+        self::assertSame(500, $response->status());
+
+        /** @var array{error: array{previous: array{type: string, message: string}}} $payload */
+        $payload = json_decode($response->body(), true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame('RuntimeException', $payload['error']['type']);
+        self::assertSame('PDOException', $payload['error']['previous']['type']);
+        self::assertSame('Connection refused', $payload['error']['previous']['message']);
+    }
+
+    public function test_json_debug_preserves_the_http_status_and_headers_of_http_exceptions(): void
+    {
+        $router = new Router();
+        $router->register(Link::get('/down', static function (): never {
+            throw new class ('maintenance') extends HttpException {
+                public function __construct(string $message)
+                {
+                    parent::__construct(503, $message, ['Retry-After' => '30']);
+                }
+            };
+        }));
+
+        $response = $this->kernel($router, debug: true)->handle(
+            self::request('/down', headers: ['Accept' => 'application/json']),
+        );
+
+        self::assertSame(503, $response->status());
+        self::assertSame('30', $response->header('Retry-After'));
+
+        /** @var array{error: array{status: int, type: string}} $payload */
+        $payload = json_decode($response->body(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame(503, $payload['error']['status']);
+        self::assertStringContainsString('HttpException', $payload['error']['type']);
+    }
+
+    public function test_debug_html_page_shows_location_cause_and_trace_escaped(): void
+    {
+        $router = new Router();
+        $router->register(Link::get('/nested', static function (): never {
+            try {
+                throw new \PDOException('Connection <refused>');
+            } catch (\PDOException $cause) {
+                throw new \RuntimeException('Database <failed>', 0, $cause);
+            }
+        }));
+
+        $response = $this->kernel($router, debug: true)->handle(self::request('/nested'));
+        $body = $response->body();
+
+        self::assertStringContainsString('RuntimeException', $body);
+        self::assertStringContainsString('Database &lt;failed&gt;', $body);
+        self::assertStringContainsString('Caused by', $body);
+        self::assertStringContainsString('PDOException: Connection &lt;refused&gt;', $body);
+        self::assertStringContainsString('ErrorPagesTest.php', $body, 'the source file is displayed');
+        self::assertStringContainsString('#0 ', $body, 'stack frames are displayed');
+        self::assertStringNotContainsString('Database <failed>', $body, 'raw exception text is escaped');
+    }
+
+    public function test_production_json_500_is_safe_and_typed(): void
+    {
+        $response = $this->kernel()->handle(
+            self::request('/boom', headers: ['Accept' => 'application/json']),
+        );
+
+        self::assertSame(500, $response->status());
         self::assertSame(
-            '{"error":"server_error","message":"database fallen over","exception":"RuntimeException"}',
+            '{"error":"server_error","message":"Hitilafu imetokea kwenye seva"}',
             $response->body(),
         );
     }
@@ -106,7 +201,7 @@ final class ErrorPagesTest extends TestCase
     public function test_http_exception_headers_are_preserved_on_the_html_page(): void
     {
         $router = new Router();
-        $router->register(Route::get('/down', static fn (): never => throw new class ('down') extends HttpException {
+        $router->register(Link::get('/down', static fn (): never => throw new class ('down') extends HttpException {
             public function __construct(string $message)
             {
                 parent::__construct(503, $message, ['Retry-After' => '30']);
@@ -118,7 +213,7 @@ final class ErrorPagesTest extends TestCase
         self::assertSame(503, $response->status());
         self::assertSame('30', $response->header('Retry-After'));
         self::assertSame('text/html; charset=utf-8', $response->header('Content-Type'));
-        self::assertStringContainsString('The service is temporarily unavailable', $response->body());
+        self::assertStringContainsString('Huduma haipatikani kwa muda', $response->body());
     }
 
     public function test_every_common_status_has_its_own_page(): void
@@ -130,15 +225,15 @@ final class ErrorPagesTest extends TestCase
         ));
 
         $pages = [
-            400 => 'The request could not be understood',
-            401 => 'Please sign in to continue',
-            403 => 'You do not have access to this page',
-            404 => 'This page could not be found',
-            405 => 'That method is not allowed here',
-            419 => 'Your page has expired',
-            429 => 'Too many requests',
-            500 => 'Something went wrong on our end',
-            503 => 'The service is temporarily unavailable',
+            400 => 'Ombi halijaeleweka',
+            401 => 'Tafadhali ingia ili kuendelea',
+            403 => 'Huna ruhusa ya kufungua ukurasa huu',
+            404 => 'Ukurasa huu haujapatikana',
+            405 => 'Njia hiyo hairuhusiwi hapa',
+            419 => 'Ukurasa wako umeisha muda',
+            429 => 'Maombi yamekuwa mengi',
+            500 => 'Kuna jambo lililokwenda mrama upande wetu',
+            503 => 'Huduma haipatikani kwa muda',
         ];
 
         foreach ($pages as $status => $heading) {
@@ -146,7 +241,7 @@ final class ErrorPagesTest extends TestCase
 
             self::assertSame($status, $response->status(), 'status '.$status);
             self::assertStringContainsString($heading, $response->body(), 'status '.$status.' page content');
-            self::assertStringContainsString('Back to home', $response->body(), 'status '.$status.' action');
+            self::assertStringContainsString('Rudi kwenye ukurasa wa mwanzo', $response->body(), 'status '.$status.' action');
             self::assertStringContainsString('<!doctype html>', $response->body(), 'status '.$status.' is a document');
         }
     }
@@ -162,7 +257,7 @@ final class ErrorPagesTest extends TestCase
         $response = $renderer->respond(self::statusException(418), self::request('/x'));
 
         self::assertSame(418, $response->status());
-        self::assertStringContainsString('This request could not be completed', $response->body());
+        self::assertStringContainsString('Ombi hili halijaweza kukamilishwa', $response->body());
         self::assertStringContainsString('Teapot', $response->body(), 'the reason phrase is shown');
     }
 
@@ -198,7 +293,7 @@ final class ErrorPagesTest extends TestCase
         self::assertSame(404, $response->status());
         self::assertSame('text/html; charset=utf-8', $response->header('Content-Type'));
         self::assertStringContainsString('404', $response->body());
-        self::assertStringContainsString('Back to home', $response->body());
+        self::assertStringContainsString('Rudi kwenye ukurasa wa mwanzo', $response->body());
     }
 
     public function test_the_renderer_still_answers_html_without_any_view_engine(): void
@@ -237,7 +332,7 @@ final class ErrorPagesTest extends TestCase
 
         if ($router === null) {
             $router = new Router();
-            $router->register(Route::get('/boom', static function (): never {
+            $router->register(Link::get('/boom', static function (): never {
                 throw new \RuntimeException('database fallen over');
             }));
         }

@@ -26,14 +26,18 @@ final class WorkerTest extends TestCase
         $this->failures = new InMemoryFailedJobs();
     }
 
-    private function worker(int $maxAttempts = 3, int $retryDelay = 0): Worker
-    {
+    private function worker(
+        int $maxAttempts = 3,
+        int $retryDelay = 0,
+        ?\Sahil\Support\Logging\LoggerContract $logger = null,
+    ): Worker {
         return new Worker(
             $this->store,
             $this->failures,
             'default',
             $maxAttempts,
             $retryDelay,
+            logger: $logger,
         );
     }
 
@@ -118,5 +122,67 @@ final class WorkerTest extends TestCase
 
         self::assertSame(2, $this->worker()->work(2));
         self::assertSame(1, $this->store->size('default'));
+    }
+
+
+    public function test_worker_logs_job_start_and_completion(): void
+    {
+        $logger = new \Sahil\Tests\Scheduler\ArrayLogger();
+        $this->store->push('default', serialize(new RecordingJob('send-email')));
+
+        $this->worker(logger: $logger)->runNextJob();
+
+        $messages = array_column($logger->entries, 'message');
+        self::assertContains('Job started', $messages);
+        self::assertContains('Job completed', $messages);
+
+        $started = $logger->entries[array_search('Job started', $messages, true)];
+        self::assertSame('debug', $started['level']);
+        self::assertSame(RecordingJob::class, $started['context']['job']);
+        self::assertSame('default', $started['context']['queue']);
+
+        $completed = $logger->entries[array_search('Job completed', $messages, true)];
+        self::assertSame('info', $completed['level']);
+        self::assertArrayHasKey('duration_ms', $completed['context']);
+    }
+
+    public function test_worker_logs_failures_with_exception_details(): void
+    {
+        $logger = new \Sahil\Tests\Scheduler\ArrayLogger();
+        $this->store->push('default', serialize(new RecordingJob('boom', fails: true)));
+
+        $this->worker(maxAttempts: 1, logger: $logger)->runNextJob();
+
+        $failed = array_values(array_filter(
+            $logger->entries,
+            static fn (array $e): bool => $e['message'] === 'Job failed',
+        ));
+        self::assertCount(1, $failed);
+        self::assertSame('error', $failed[0]['level']);
+        self::assertSame(RecordingJob::class, $failed[0]['context']['job']);
+        self::assertStringContainsString('RuntimeException', $failed[0]['context']['exception']);
+        self::assertStringContainsString('[boom] failed', $failed[0]['context']['exception']);
+    }
+
+    public function test_worker_logs_each_job_independently_across_sequential_jobs(): void
+    {
+        $logger = new \Sahil\Tests\Scheduler\ArrayLogger();
+        $this->store->push('default', serialize(new RecordingJob('first')));
+        $this->store->push('default', serialize(new RecordingJob('second')));
+
+        $worker = $this->worker(logger: $logger);
+        $worker->runNextJob();
+        $worker->runNextJob();
+
+        $completed = array_values(array_filter(
+            $logger->entries,
+            static fn (array $e): bool => $e['message'] === 'Job completed',
+        ));
+        self::assertCount(2, $completed);
+        // Each record carries only its own job's identity — no shared state.
+        self::assertNotSame(
+            $completed[0]['context']['job_id'] ?? null,
+            $completed[1]['context']['job_id'] ?? null,
+        );
     }
 }

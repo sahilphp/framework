@@ -137,12 +137,97 @@ final class LoggingAndExceptionHandlingTest extends TestCase
         // Production: nothing but the generic error body.
         $production = $handler->render(new \RuntimeException('db down: 10.0.0.7'), debug: false);
         self::assertSame(500, $production->status());
-        self::assertSame('{"error":"server_error"}', $production->body());
+        self::assertSame(
+            '{"error":"server_error","message":"Hitilafu imetokea kwenye seva"}',
+            $production->body(),
+        );
         self::assertStringNotContainsString('10.0.0.7', $production->body());
 
-        // Debug (explicit opt-in): message and class, still no stack trace.
+        // Debug (explicit opt-in): the structured diagnostic payload.
         $debug = $handler->render(new \RuntimeException('db down'), debug: true);
-        self::assertSame('{"error":"server_error","message":"db down","exception":"RuntimeException"}', $debug->body());
+
+        /** @var array{error: array{type: string, message: string, trace: list<string>}} $payload */
+        $payload = json_decode($debug->body(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('RuntimeException', $payload['error']['type']);
+        self::assertSame('db down', $payload['error']['message']);
+        self::assertNotSame([], $payload['error']['trace']);
+    }
+
+    public function test_report_records_diagnostics_trace_cause_and_request_context(): void
+    {
+        $logger = new RecordingLogger();
+        $handler = new CentralExceptionHandler($logger);
+
+        $previous = new \InvalidArgumentException('bad input');
+        $failure = new \RuntimeException('wrapping failure', 0, $previous);
+
+        $request = \Sahil\Http\Request::fromGlobals([
+            'REQUEST_METHOD' => 'POST',
+            'REQUEST_URI' => '/orders?fast=1',
+            'HTTP_X_REQUEST_ID' => 'req-42',
+            'HTTP_AUTHORIZATION' => 'Bearer must-never-be-logged',
+        ], []);
+
+        $handler->report($failure, $request);
+
+        self::assertCount(1, $logger->events);
+        $event = $logger->events[0];
+
+        self::assertSame('error', $event['level']);
+        $context = $event['context'];
+
+        self::assertSame(\RuntimeException::class, $context['exception_class']);
+        self::assertSame('wrapping failure', $context['message']);
+        self::assertSame(500, $context['status']);
+
+        // The previous cause chain survives.
+        self::assertIsArray($context['previous']);
+        self::assertSame(\InvalidArgumentException::class, $context['previous']['type']);
+        self::assertSame('bad input', $context['previous']['message']);
+
+        // A real stack trace is recorded — frames without argument values.
+        self::assertIsArray($context['trace']);
+        self::assertNotSame([], $context['trace']);
+        self::assertStringStartsWith('#0 ', $context['trace'][0]);
+
+        // The request is identified safely: method, URI, correlation id only.
+        self::assertSame(['method' => 'POST', 'uri' => '/orders?fast=1'], $context['request']);
+        self::assertSame('req-42', $context['request_id']);
+        self::assertStringNotContainsString(
+            'must-never-be-logged',
+            json_encode($context),
+            'authorization headers never reach the log context',
+        );
+    }
+
+    public function test_report_survives_a_broken_log_sink(): void
+    {
+        $handler = new CentralExceptionHandler(new ThrowingLogger());
+
+        // Must not throw: the original exception still renders afterwards.
+        $handler->report(new \RuntimeException('still rendered'));
+
+        $response = $handler->render(new \RuntimeException('still rendered'), debug: false);
+        self::assertSame(500, $response->status());
+    }
+
+    public function test_file_log_entry_contains_the_full_diagnostic_record(): void
+    {
+        $dir = self::temporaryDir();
+        $this->logFile = $dir.'/app.log';
+
+        $handler = new CentralExceptionHandler(new FileLogger($this->logFile));
+        $handler->report(new \TypeError('Typed property must not be null'));
+
+        $event = json_decode((string) file_get_contents($this->logFile), true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame('error', $event['level']);
+        self::assertArrayHasKey('timestamp', $event);
+        self::assertSame(\TypeError::class, $event['context']['exception_class']);
+        self::assertSame('Typed property must not be null', $event['context']['message']);
+        self::assertArrayHasKey('trace.0', $event['context'], 'the flattened trace reaches the log');
+        self::assertArrayHasKey('file', $event['context']);
+        self::assertArrayHasKey('line', $event['context']);
     }
 
     public function test_application_builds_the_observability_chain_via_container(): void
@@ -166,6 +251,57 @@ final class LoggingAndExceptionHandlingTest extends TestCase
 
         $notFound = $handler->render(new \Sahil\Http\Exception\NotFoundHttpException(), debug: false);
         self::assertSame(404, $notFound->status());
+    }
+}
+
+/**
+ * A log sink that always fails: reporting must degrade, never escalate.
+ */
+final class ThrowingLogger implements LoggerContract
+{
+    public function log(string $level, string $message, array $context = []): void
+    {
+        throw new \RuntimeException('log disk is gone');
+    }
+
+    public function emergency(string $message, array $context = []): void
+    {
+        $this->log('emergency', $message, $context);
+    }
+
+    public function alert(string $message, array $context = []): void
+    {
+        $this->log('alert', $message, $context);
+    }
+
+    public function critical(string $message, array $context = []): void
+    {
+        $this->log('critical', $message, $context);
+    }
+
+    public function error(string $message, array $context = []): void
+    {
+        $this->log('error', $message, $context);
+    }
+
+    public function warning(string $message, array $context = []): void
+    {
+        $this->log('warning', $message, $context);
+    }
+
+    public function notice(string $message, array $context = []): void
+    {
+        $this->log('notice', $message, $context);
+    }
+
+    public function info(string $message, array $context = []): void
+    {
+        $this->log('info', $message, $context);
+    }
+
+    public function debug(string $message, array $context = []): void
+    {
+        $this->log('debug', $message, $context);
     }
 }
 
