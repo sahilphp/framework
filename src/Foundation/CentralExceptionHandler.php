@@ -101,9 +101,11 @@ final class CentralExceptionHandler
      *
      * With a request, the answer matches what the client expects (HTML page or
      * JSON); without one, the JSON contract is kept for standalone callers.
+     * The kernel passes the matched route (when it reached one) so the debug
+     * page can name it.
      */
-    public function render(Throwable $throwable, bool $debug = false, ?Request $request = null): Response
+    public function render(Throwable $throwable, bool $debug = false, ?Request $request = null, ?\Sahil\Http\RouteMatch $route = null): Response
     {
-        return ($this->errors ?? new ErrorRenderer())->respond($throwable, $request, $debug);
+        return ($this->errors ?? new ErrorRenderer())->respond($throwable, $request, $debug, $route);
     }
 }

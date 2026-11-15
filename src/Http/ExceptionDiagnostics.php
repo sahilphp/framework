@@ -41,6 +41,7 @@ final class ExceptionDiagnostics
      *
      * @return array{
      *     type: string,
+     *     exception: string,
      *     message: string,
      *     file: string,
      *     line: int,
@@ -53,6 +54,7 @@ final class ExceptionDiagnostics
     {
         return [
             'type' => $throwable::class,
+            'exception' => $throwable::class,
             'message' => $throwable->getMessage(),
             'file' => $throwable->getFile(),
             'line' => $throwable->getLine(),

@@ -198,6 +198,30 @@ final class ConfigurationHandlingTest extends TestCase
         }
     }
 
+    public function test_local_is_a_recognized_environment_that_allows_debug(): void
+    {
+        $temporaryRoot = sys_get_temp_dir().'/sahil-stage-'.bin2hex(random_bytes(4));
+        mkdir($temporaryRoot.'/config', recursive: true);
+
+        file_put_contents($temporaryRoot.'/config/app.php', <<<PHP
+            <?php
+            return ['environment' => 'local', 'debug' => true];
+            PHP);
+
+        try {
+            $app = Application::configure($temporaryRoot);
+            $app->loadConfiguration();
+
+            self::assertSame('local', $app->config()->get('app.environment'));
+            self::assertTrue($app->config()->get('app.debug'));
+        } finally {
+            Application::free();
+            unlink($temporaryRoot.'/config/app.php');
+            rmdir($temporaryRoot.'/config');
+            rmdir($temporaryRoot);
+        }
+    }
+
     public function test_debug_may_not_be_true_in_production(): void
     {
         $temporaryRoot = sys_get_temp_dir().'/sahil-stage-'.bin2hex(random_bytes(4));

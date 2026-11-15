@@ -79,6 +79,15 @@ final class Environment
             return $default;
         }
 
+        // When the consumer asks for a boolean (`env('APP_DEBUG', false)`)
+        // accept the full set of boolean spellings — `1`/`0`, `yes`/`no`,
+        // `on`/`off` — not just `true`/`false`. Unrecognized values stay
+        // strings so configuration validation can reject them instead of
+        // silently guessing.
+        if (is_bool($default)) {
+            return $this->castBool($value) ?? $this->cast($value);
+        }
+
         return $this->cast($value);
     }
 
@@ -240,6 +249,19 @@ final class Environment
             'true' => true,
             'false' => false,
             default => $value,
+        };
+    }
+
+    /**
+     * Extended boolean parsing for keys read with a boolean default; null
+     * when the value is not a recognized boolean spelling.
+     */
+    private function castBool(string $value): ?bool
+    {
+        return match (strtolower(trim($value))) {
+            '1', 'true', 'yes', 'on' => true,
+            '0', 'false', 'no', 'off' => false,
+            default => null,
         };
     }
 }

@@ -118,4 +118,40 @@ final class EnvironmentTest extends TestCase
         self::assertContains('APP_NAME', $keys);
         self::assertContains('PLAIN_NUMBER', $keys);
     }
+
+    public function test_boolean_defaults_accept_the_full_boolean_spellings(): void
+    {
+        $environment = new Environment();
+
+        foreach (['1', 'true', 'TRUE', 'yes', 'on'] as $spelling) {
+            $environment->set('FLAG', $spelling);
+            self::assertTrue($environment->get('FLAG', false), $spelling.' must read as true');
+        }
+
+        foreach (['0', 'false', 'FALSE', 'no', 'off'] as $spelling) {
+            $environment->set('FLAG', $spelling);
+            self::assertFalse($environment->get('FLAG', true), $spelling.' must read as false');
+        }
+    }
+
+    public function test_unrecognized_boolean_spelling_stays_a_string_for_validation(): void
+    {
+        $environment = new Environment();
+        $environment->set('FLAG', 'maybe');
+
+        // The value is not guessed: it reaches config validation as a string
+        // and is rejected as `app.debug must be a boolean`.
+        self::assertSame('maybe', $environment->get('FLAG', false));
+    }
+
+    public function test_non_boolean_defaults_never_coerce_numeric_strings(): void
+    {
+        $environment = new Environment();
+        $environment->set('PORT', '0');
+        $environment->set('WORKERS', '1');
+
+        self::assertSame('0', $environment->get('PORT'));
+        self::assertSame('1', $environment->get('WORKERS'));
+        self::assertSame('0', $environment->get('PORT', '8080'));
+    }
 }

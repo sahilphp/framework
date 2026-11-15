@@ -58,6 +58,38 @@ final class RenderManager
         $this->adapters[$name] = $adapter;
     }
 
+    /**
+     * Register an additional environment name for an already-registered
+     * adapter — used by packages whose environment reads naturally under
+     * two names (Firefiber's `fire`/`fiber`).
+     *
+     * @throws InvalidArgumentException When the alias is malformed or taken
+     * @throws RuntimeException When the target environment has no adapter
+     */
+    public function alias(string $alias, string $environment): void
+    {
+        if (preg_match('/^[a-z][a-z0-9-]*$/', $alias) !== 1) {
+            throw new InvalidArgumentException(sprintf(
+                'Render environment name [%s] must be lower-case letters, digits and dashes.',
+                $alias,
+            ));
+        }
+
+        if (isset($this->adapters[$alias])) {
+            throw new InvalidArgumentException(sprintf(
+                'A render adapter for environment [%s] is already registered.',
+                $alias,
+            ));
+        }
+
+        $this->adapters[$alias] = $this->adapters[$environment]
+            ?? throw new RuntimeException(sprintf(
+                'Cannot alias render environment [%s]: [%s] has no adapter.',
+                $alias,
+                $environment,
+            ));
+    }
+
     public function has(string $environment): bool
     {
         return isset($this->adapters[$environment]);

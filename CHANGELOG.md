@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `RenderManager::alias()` registers an extra environment name for an
+  existing adapter, and the framework ships the `fiber` helpers that use it:
+  `Render::fiber()`, the `$this->fiber()` controller helper, and
+  `Response::fiber()` delegate to the `fiber` environment (aliased to
+  Firefiber's `fire` adapter when the package is installed).
 - Designed HTML error pages: `Sahil\Http\ErrorRenderer` answers browser
   requests with a self-contained page for the status (`400`, `401`, `403`,
   `404`, `405`, `419`, `429`, `500`, `503` and generic `4xx`/`5xx` groups),
@@ -35,8 +40,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - `Kernel::usingExceptionHandler()` handlers now receive the failing request
-  as a second argument (`callable(Throwable, Request): ?Response`); handlers
-  that only need the throwable keep working unchanged.
+  as a second argument and the matched route as an optional third
+  (`callable(Throwable, Request, ?RouteMatch): ?Response`); handlers that
+  only need the throwable keep working unchanged.
+- Debug error responses now carry the full request picture: the exception
+  page (template and built-in fallback) shows the request line, matched
+  route, `X-Request-Id` and a UTC timestamp, wraps the stack trace in a
+  collapsible block and offers a copy-details button; the JSON debug payload
+  gains `exception` and `request_id` keys.
+- `Environment::get()` accepts the full boolean spellings — `1`/`0`,
+  `yes`/`no`, `on`/`off`, `true`/`false` — when read with a boolean default
+  (`env('APP_DEBUG', false)`); unrecognized values stay strings so
+  configuration validation can reject them. `local` is a recognized
+  `app.environment`.
 - Unsupported media types still answer a machine-readable
   `{"error":"unsupported_media_type"}` 415, while a browser gets the 415
   error page.

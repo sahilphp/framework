@@ -160,9 +160,62 @@ final class UnifiedRenderTest extends TestCase
         self::assertSame(201, $response->status());
     }
 
+    public function test_environment_alias_renders_through_the_same_adapter(): void
+    {
+        $manager = new RenderManager([new SpyAdapter('fire')]);
+        $manager->alias('fiber', 'fire');
+
+        self::assertTrue($manager->has('fiber'));
+        self::assertContains('fiber', $manager->environments());
+        self::assertSame('fire:pages.dashboard', $manager->render('fiber', 'pages.dashboard')->body());
+    }
+
+    public function test_alias_rejects_an_unknown_target_environment(): void
+    {
+        $manager = new RenderManager([new SpyAdapter('fire')]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessageMatches('/Cannot alias render environment \[fiber\]/');
+
+        $manager->alias('fiber', 'missing');
+    }
+
+    public function test_alias_rejects_a_taken_or_malformed_name(): void
+    {
+        $manager = new RenderManager([new SpyAdapter('fire')]);
+
+        try {
+            $manager->alias('fire', 'fire');
+            self::fail('Expected the duplicate alias to be rejected.');
+        } catch (InvalidArgumentException $e) {
+            self::assertStringContainsString('already registered', $e->getMessage());
+        }
+
+        $this->expectException(InvalidArgumentException::class);
+
+        $manager->alias('Fiber', 'fire');
+    }
+
+    public function test_render_and_response_fiber_alias_helpers(): void
+    {
+        $manager = $this->manager();
+        $manager->alias('fiber', 'fire');
+        Render::swap($manager);
+
+        self::assertSame('fire:pages.f', Render::fiber('pages.f')->body());
+
+        $response = Response::fiber('pages.dashboard', [], 201);
+
+        self::assertSame('fire:pages.dashboard', $response->body());
+        self::assertSame('fiber', $response->frontend());
+        self::assertSame(201, $response->status());
+    }
+
     public function test_controller_helpers_delegate_per_environment(): void
     {
-        Render::swap($this->manager());
+        $manager = $this->manager();
+        $manager->alias('fiber', 'fire');
+        Render::swap($manager);
 
         $controller = new class () {
             use RendersPages;
@@ -175,6 +228,7 @@ final class UnifiedRenderTest extends TestCase
                     'react' => $this->react('pages.r'),
                     'svelte' => $this->svelte('pages.s'),
                     'fire' => $this->fire('pages.f'),
+                    'fiber' => $this->fiber('pages.fib'),
                     'custom' => $this->renderTo('vue', 'pages.custom'),
                 ];
             }
@@ -188,6 +242,7 @@ final class UnifiedRenderTest extends TestCase
         self::assertSame('react:pages.r', $r['react']->body());
         self::assertSame('svelte:pages.s', $r['svelte']->body());
         self::assertSame('fire:pages.f', $r['fire']->body());
+        self::assertSame('fire:pages.fib', $r['fiber']->body());
         self::assertSame('vue:pages.custom', $r['custom']->body());
     }
 

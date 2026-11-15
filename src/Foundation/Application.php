@@ -179,7 +179,7 @@ final class Application implements ApplicationContract
 
         $loaded = [];
 
-        $environmentNames = ['development', 'testing', 'staging', 'production'];
+        $environmentNames = ['local', 'development', 'testing', 'staging', 'production'];
 
         foreach ($files as $file) {
             // File names matching the closed environment list are overlays
@@ -277,9 +277,9 @@ final class Application implements ApplicationContract
         if ($environment !== null) {
             if (!is_string($environment)) {
                 $violations[] = sprintf('app.environment must be a string, got %s.', get_debug_type($environment));
-            } elseif (!in_array($environment, ['development', 'testing', 'staging', 'production'], true)) {
+            } elseif (!in_array($environment, ['local', 'development', 'testing', 'staging', 'production'], true)) {
                 $violations[] = sprintf(
-                    'app.environment [%s] is not one of: development, testing, staging, production.',
+                    'app.environment [%s] is not one of: local, development, testing, staging, production.',
                     $environment,
                 );
             }

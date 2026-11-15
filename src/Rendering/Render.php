@@ -62,6 +62,12 @@ final class Render
         return self::to('fire', $page, $data, $status);
     }
 
+    /** Firefiber alias — identical to {@see fire()}. */
+    public static function fiber(string $page, array $data = [], int $status = 200): Response
+    {
+        return self::to('fiber', $page, $data, $status);
+    }
+
     public static function manager(): RenderManager
     {
         if (self::$instance !== null) {

@@ -111,17 +111,43 @@ final class ErrorRenderer
      * Render the throwable as a response.
      *
      * A null request (used by standalone callers) keeps the JSON contract.
+     * When the kernel has already matched a route it is passed along so the
+     * debug page can name the route that failed.
      */
-    public function respond(Throwable $throwable, ?Request $request = null, bool $debug = false): Response
+    public function respond(Throwable $throwable, ?Request $request = null, bool $debug = false, ?RouteMatch $route = null): Response
     {
         $status = ExceptionDiagnostics::status($throwable);
         $headers = $throwable instanceof HttpException ? $throwable->getHeaders() : [];
+        $context = self::requestContext($request, $route);
 
         $response = $request !== null && !self::expectsJson($request)
-            ? $this->html($throwable, $status, $debug)
-            : self::json($throwable, $status, $debug);
+            ? $this->html($throwable, $status, $debug, $context)
+            : self::json($throwable, $status, $debug, $context);
 
         return $response->withHeaders($headers);
+    }
+
+    /**
+     * The request picture the debug surfaces show: method + URI, the matched
+     * route, the correlation id and a timestamp. Never any body, header map,
+     * cookie or parameter values.
+     *
+     * @return array{request_line: string, request_id: string, route: string, timestamp: string}
+     */
+    private static function requestContext(?Request $request, ?RouteMatch $route): array
+    {
+        $requestId = $request !== null ? $request->header('X-Request-Id') : null;
+        $routeLink = $route?->route();
+
+        return [
+            'request_line' => $request !== null ? $request->method().' '.$request->uri() : '',
+            'request_id' => is_string($requestId) ? $requestId : '',
+            'route' => $routeLink !== null
+                ? implode('|', $routeLink->methods()).' '.$routeLink->path()
+                    .($routeLink->routeName() !== null ? ' ('.$routeLink->routeName().')' : '')
+                : '',
+            'timestamp' => gmdate('Y-m-d H:i:s').' UTC',
+        ];
     }
 
     /**
@@ -145,12 +171,22 @@ final class ErrorRenderer
         return strtolower(trim((string) $request->header('X-Requested-With', ''))) === 'xmlhttprequest';
     }
 
-    private static function json(Throwable $throwable, int $status, bool $debug): Response
+    /**
+     * @param array{request_line: string, request_id: string, route: string, timestamp: string} $context
+     */
+    private static function json(Throwable $throwable, int $status, bool $debug, array $context): Response
     {
         if ($debug) {
             // Structured diagnostics: the same information the log records —
-            // type, message, location, status, cause chain and stack trace.
-            return Response::json(['error' => ExceptionDiagnostics::payload($throwable)], $status);
+            // type, message, location, status, cause chain, stack trace and
+            // the request correlation id.
+            $payload = ExceptionDiagnostics::payload($throwable);
+
+            if ($context['request_id'] !== '') {
+                $payload['request_id'] = $context['request_id'];
+            }
+
+            return Response::json(['error' => $payload], $status);
         }
 
         if ($throwable instanceof HttpException) {
@@ -163,10 +199,13 @@ final class ErrorRenderer
         );
     }
 
-    private function html(Throwable $throwable, int $status, bool $debug): Response
+    /**
+     * @param array{request_line: string, request_id: string, route: string, timestamp: string} $context
+     */
+    private function html(Throwable $throwable, int $status, bool $debug, array $context): Response
     {
-        $body = $this->renderPage($throwable, $status, $debug)
-            ?? self::fallbackPage($status, $throwable, $debug);
+        $body = $this->renderPage($throwable, $status, $debug, $context)
+            ?? self::fallbackPage($status, $throwable, $debug, $context);
 
         // An error page is never cacheable: the next request may succeed.
         return Response::html($body, $status)->withHeader('Cache-Control', 'no-store');
@@ -175,8 +214,10 @@ final class ErrorRenderer
     /**
      * Render `errors.{status}`, then the `errors.4xx`/`errors.5xx` group page,
      * and answer null when no template can be rendered.
+     *
+     * @param array{request_line: string, request_id: string, route: string, timestamp: string} $context
      */
-    private function renderPage(Throwable $throwable, int $status, bool $debug): ?string
+    private function renderPage(Throwable $throwable, int $status, bool $debug, array $context): ?string
     {
         if ($this->views === null) {
             return null;
@@ -188,6 +229,10 @@ final class ErrorRenderer
             'debug' => $debug,
             'exception_previous' => '',
             'exception_trace' => [],
+            'request_line' => '',
+            'request_id' => '',
+            'route' => '',
+            'timestamp' => '',
         ];
 
         if ($debug) {
@@ -197,6 +242,10 @@ final class ErrorRenderer
             $data['exception_line'] = $throwable->getLine();
             $data['exception_previous'] = ExceptionDiagnostics::previousSummary($throwable) ?? '';
             $data['exception_trace'] = ExceptionDiagnostics::trace($throwable);
+            $data['request_line'] = $context['request_line'];
+            $data['request_id'] = $context['request_id'];
+            $data['route'] = $context['route'];
+            $data['timestamp'] = $context['timestamp'];
         }
 
         foreach (self::candidates($status) as $view) {
@@ -233,38 +282,86 @@ final class ErrorRenderer
 
     /**
      * Self-contained page used when no template can be rendered. It carries
-     * the status, the reason phrase and (in debug mode) the exception, and
-     * needs no assets, no cache and no storage.
+     * the status, the reason phrase and (in debug mode) the full exception
+     * diagnostic plus request context, and needs no assets, no cache and no
+     * storage.
+     *
+     * @param array{request_line: string, request_id: string, route: string, timestamp: string} $context
      */
-    private static function fallbackPage(int $status, Throwable $throwable, bool $debug): string
+    private static function fallbackPage(int $status, Throwable $throwable, bool $debug, array $context): string
     {
         $reason = htmlspecialchars(Status::reason($status), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $escape = static fn (string $value): string
             => htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $details = '';
+        $copyScript = '';
 
         if ($debug) {
+            $meta = '';
+
+            foreach ([
+                'Request' => $context['request_line'],
+                'Route' => $context['route'],
+                'Request ID' => $context['request_id'],
+                'Time' => $context['timestamp'],
+            ] as $label => $value) {
+                if ($value !== '') {
+                    $meta .= sprintf(
+                        '<div class="meta__row"><span class="meta__label">%s</span><span class="meta__value">%s</span></div>',
+                        $escape($label),
+                        $escape($value),
+                    );
+                }
+            }
+
+            $trace = ExceptionDiagnostics::trace($throwable);
+            $previous = ExceptionDiagnostics::previousSummary($throwable);
+
             $details = sprintf(
-                '<div class="details">'
+                '<section class="details" id="err-details">'
                 .'<h2>%s</h2>'
-                .'<p>%s</p>'
+                .'<p class="details__message">%s</p>'
                 .'<p class="location">%s:%d</p>'
                 .'%s'
                 .'%s'
-                .'</div>',
+                .'%s'
+                .'</section>',
                 $escape($throwable::class),
                 $escape($throwable->getMessage()),
                 $escape($throwable->getFile()),
                 $throwable->getLine(),
-                ($previous = ExceptionDiagnostics::previousSummary($throwable)) !== null
+                $previous !== null
                     ? '<p class="cause"><strong>Caused by:</strong> '.$escape($previous).'</p>'
                     : '',
-                ($trace = ExceptionDiagnostics::trace($throwable)) !== []
-                    ? '<pre class="trace">'.$escape(implode("\n", $trace)).'</pre>'
+                $meta !== '' ? '<div class="meta">'.$meta.'</div>' : '',
+                $trace !== []
+                    ? '<details class="trace" open><summary>Stack trace ('.count($trace).' frames)</summary>'
+                      .'<pre>'.$escape(implode("\n", $trace)).'</pre></details>'
                     : '',
             );
+
+            // "Copy" is progressive enhancement: without JavaScript the
+            // button is hidden by the inline script itself.
+            $copyScript = <<<'HTML'
+                <button type="button" id="err-copy" class="copy" hidden>Copy details</button>
+                <script>
+                    (function () {
+                        var button = document.getElementById('err-copy');
+                        if (!button || !navigator.clipboard) { return; }
+                        button.hidden = false;
+                        button.addEventListener('click', function () {
+                            var details = document.getElementById('err-details');
+                            if (details && details.textContent) {
+                                navigator.clipboard.writeText(details.textContent.trim());
+                                button.textContent = 'Copied';
+                            }
+                        });
+                    })();
+                </script>
+                HTML;
         }
 
+        $debugClass = $debug ? ' class="main--debug"' : '';
         $title = $escape(self::text('errors.server_error_title', 'Something went wrong'));
         $tryAgain = $escape(self::text('errors.try_again', 'Please try again. If the problem persists, contact the site administrator.'));
         $backHome = $escape(self::text('errors.back_home', 'Back to home'));
@@ -280,23 +377,44 @@ final class ErrorRenderer
                 <style>
                     :root { color-scheme: light dark; }
                     * { box-sizing: border-box; }
-                    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 32px 20px;
+                    body { margin: 0; min-height: 100vh; min-height: 100svh; display: grid;
+                           padding: clamp(12px, 4vw, 32px) clamp(12px, 3vw, 20px);
                            background: #f5f7fb; color: #101828;
                            font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
-                    main { width: 100%; max-width: 560px; padding: 40px; background: #fff; border: 1px solid #e3e8ef;
+                    main { margin: auto; width: 100%; max-width: 560px; padding: clamp(20px, 5vw, 40px);
+                           background: #fff; border: 1px solid #e3e8ef;
                            border-radius: 20px; box-shadow: 0 24px 60px -32px rgba(16, 24, 40, .35); }
+                    main.main--debug { max-width: 960px; }
                     .code { margin: 0; font-size: 13px; letter-spacing: .18em; text-transform: uppercase; color: #0b6fe8; }
-                    h1 { margin: 12px 0 8px; font-size: 30px; line-height: 1.2; }
+                    h1 { margin: 12px 0 8px; font-size: clamp(22px, 4.5vw, 30px); line-height: 1.2; }
                     p { margin: 0 0 12px; color: #5b6675; line-height: 1.6; }
                     .details { padding: 14px 16px; margin-top: 20px; border-radius: 12px; background: #f5f7fb;
                                border: 1px solid #e3e8ef; color: #101828; font-size: 14px; overflow-wrap: anywhere; }
                     .details h2 { margin: 0 0 6px; font-size: 13px; letter-spacing: .05em; text-transform: uppercase;
                                   color: #5b6675; }
                     .details p { margin: 0 0 8px; color: #101828; }
-                    .details .location, .details .cause { color: #5b6675; font-size: 13px; }
-                    .details .trace { margin: 10px 0 0; max-height: 320px; overflow: auto; font-size: 12.5px;
-                                      line-height: 1.6; white-space: pre-wrap; color: #5b6675;
-                                      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+                    .details .details__message { font-weight: 600; }
+                    .details .location, .details .cause { color: #5b6675; font-size: 13px;
+                                  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+                                  overflow-wrap: anywhere; }
+                    .meta { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid #e3e8ef; font-size: 13px; }
+                    .meta__row { display: flex; gap: 10px; padding: 2px 0; }
+                    .meta__label { flex: 0 0 88px; color: #5b6675; font-weight: 600; }
+                    .meta__value { color: #101828; overflow-wrap: anywhere;
+                                   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+                    @media (max-width: 520px) {
+                        .meta__row { flex-direction: column; gap: 2px; }
+                        .meta__label { flex: none; }
+                    }
+                    .trace { margin: 10px 0 0; }
+                    .trace summary { cursor: pointer; font-size: 13px; font-weight: 600; color: #5b6675; }
+                    .trace pre { margin: 8px 0 0; max-height: 320px; max-height: 40svh; overflow: auto; font-size: 12.5px;
+                                 line-height: 1.6; white-space: pre-wrap; color: #5b6675;
+                                 font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+                    .copy { margin-top: 12px; padding: 8px 14px; border-radius: 8px; border: 1px solid #c3cedd;
+                            background: #fff; color: #101828; font: inherit; font-size: 13px; font-weight: 600;
+                            cursor: pointer; }
+                    .copy:hover { background: #eef3fb; }
                     a { display: inline-block; margin-top: 12px; padding: 11px 18px; border-radius: 10px;
                         background: #0b6fe8; color: #fff; text-decoration: none; font-weight: 600; }
                     @media (prefers-color-scheme: dark) {
@@ -306,17 +424,24 @@ final class ErrorRenderer
                         .details { background: #1b2540; border-color: #242d44; color: #eef2f9; }
                         .details h2 { color: #9aa7bd; }
                         .details p { color: #eef2f9; }
-                        .details .location, .details .cause, .details .trace { color: #9aa7bd; }
+                        .details .location, .details .cause { color: #9aa7bd; }
+                        .meta { border-top-color: #242d44; }
+                        .meta__label { color: #9aa7bd; }
+                        .meta__value { color: #eef2f9; }
+                        .trace summary, .trace pre { color: #9aa7bd; }
+                        .copy { background: #242d44; border-color: #35446a; color: #eef2f9; }
+                        .copy:hover { background: #2e3a5c; }
                         a { background: #4c9bff; color: #08111f; }
                     }
                 </style>
             </head>
             <body>
-                <main>
+                <main{$debugClass}>
                     <p class="code">{$status} · {$reason}</p>
                     <h1>{$title}</h1>
                     <p>{$tryAgain}</p>
                     {$details}
+                    {$copyScript}
                     <a href="/">{$backHome}</a>
                 </main>
             </body>

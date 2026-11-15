@@ -55,12 +55,15 @@ final class Kernel
         'throttle' => \Sahil\Http\Middleware\Throttle::class,
     ];
 
-    /** @var callable(Throwable, Request): ?Response|null */
+    /** @var callable(Throwable, Request, ?RouteMatch): ?Response|null */
     private $exceptionHandler = null;
 
     private bool $debug = false;
 
     private ?ErrorRenderer $errorRenderer = null;
+
+    /** The route matched for the in-flight request, when one was found. */
+    private ?RouteMatch $matchedRoute = null;
 
     public function __construct(
         private readonly Router $router,
@@ -94,9 +97,11 @@ final class Kernel
      * block) and are then handed to this callable with the failing request
      * (a handler that only needs the throwable can ignore it). If it returns
      * a Response, that response is emitted; returning null falls back to the
-     * kernel's built-in rendering (see {@see ErrorRenderer}).
+     * kernel's built-in rendering (see {@see ErrorRenderer}). A third
+     * parameter carries the {@see RouteMatch} when the request reached route
+     * matching — handlers that do not need it simply omit the parameter.
      *
-     * @param callable(Throwable, Request): ?Response $handler
+     * @param callable(Throwable, Request, ?RouteMatch): ?Response $handler
      */
     public function usingExceptionHandler(callable $handler): self
     {
@@ -119,6 +124,8 @@ final class Kernel
         }
 
         return $this->application->isolatedRequest(function () use ($request): Response {
+            $this->matchedRoute = null;
+
             try {
                 // Reject unsupported content types with 415; requests without a
                 // content type and JSON/form bodies are allowed. Compare the
@@ -198,7 +205,9 @@ final class Kernel
         }
 
         try {
-            return ($this->exceptionHandler)($throwable, $request) ?? $fallback;
+            // Handlers declared with two parameters simply ignore the third:
+            // it carries the matched route so debug pages can name it.
+            return ($this->exceptionHandler)($throwable, $request, $this->matchedRoute) ?? $fallback;
         } catch (Throwable $handlerFailure) {
             // A handler may deliberately rethrow the original throwable (the
             // test kit's withoutExceptionHandling() relies on that); that is
@@ -338,7 +347,7 @@ final class Kernel
     private function renderError(Throwable $throwable, Request $request): Response
     {
         try {
-            return $this->errorRenderer()->respond($throwable, $request, $this->debug);
+            return $this->errorRenderer()->respond($throwable, $request, $this->debug, $this->matchedRoute);
         } catch (Throwable) {
             $status = ExceptionDiagnostics::status($throwable);
 
@@ -370,6 +379,7 @@ final class Kernel
         // selection) apply to error responses for unmatched paths too.
         $dispatch = function () use ($request): Response {
             $match = $this->router->match($request);
+            $this->matchedRoute = $match;
 
             return self::pipelineRunner(
                 fn (): Response => $this->dispatchHandler($request, $match),

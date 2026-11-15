@@ -185,6 +185,64 @@ final class ErrorPagesTest extends TestCase
         self::assertStringNotContainsString('Database <failed>', $body, 'raw exception text is escaped');
     }
 
+    public function test_debug_html_page_shows_request_route_and_correlation_context(): void
+    {
+        $router = new Router();
+        $router->register(Link::get('/boom', static function (): never {
+            throw new \RuntimeException('database fallen over');
+        })->name('debug.boom'));
+
+        $response = $this->kernel($router, debug: true)->handle(
+            self::request('/boom?limit=3', headers: ['X-Request-Id' => 'req-abc-123']),
+        );
+
+        self::assertSame(500, $response->status());
+
+        $body = $response->body();
+        self::assertStringContainsString('GET /boom?limit=3', $body, 'the request line is displayed');
+        self::assertStringContainsString('GET|HEAD /boom (debug.boom)', $body, 'the matched route is displayed');
+        self::assertStringContainsString('req-abc-123', $body, 'the request id is displayed');
+        self::assertStringContainsString('UTC', $body, 'the timestamp is displayed');
+    }
+
+    public function test_debug_page_for_an_unmatched_route_omits_route_context(): void
+    {
+        $response = $this->kernel(debug: true)->handle(self::request('/missing'));
+
+        self::assertSame(404, $response->status());
+        self::assertStringContainsString('GET /missing', $response->body());
+    }
+
+    public function test_debug_json_payload_carries_the_request_id_and_exception_class(): void
+    {
+        $response = $this->kernel(debug: true)->handle(
+            self::request('/boom', headers: [
+                'Accept' => 'application/json',
+                'X-Request-Id' => 'req-json-42',
+            ]),
+        );
+
+        self::assertSame(500, $response->status());
+
+        /** @var array{error: array{exception: string, request_id: string, trace: list<string>}} $payload */
+        $payload = json_decode($response->body(), true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame('RuntimeException', $payload['error']['exception']);
+        self::assertSame('req-json-42', $payload['error']['request_id']);
+        self::assertNotSame([], $payload['error']['trace']);
+    }
+
+    public function test_debug_page_escapes_request_derived_values(): void
+    {
+        $response = $this->kernel(debug: true)->handle(
+            self::request('/boom?x=<script>alert(1)</script>'),
+        );
+
+        $body = $response->body();
+        self::assertStringNotContainsString('<script>alert(1)</script>', $body);
+        self::assertStringContainsString('&lt;script&gt;', $body);
+    }
+
     public function test_production_json_500_is_safe_and_typed(): void
     {
         $response = $this->kernel()->handle(

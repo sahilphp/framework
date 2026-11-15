@@ -48,9 +48,10 @@
         body {
             margin: 0;
             min-height: 100vh;
+            min-height: 100svh;
             display: grid;
-            place-items: center;
             padding: 40px 20px;
+            padding: clamp(16px, 5vw, 40px) clamp(14px, 4vw, 20px);
             background:
                 radial-gradient(900px 520px at 12% -10%, var(--glow-one), transparent 70%),
                 radial-gradient(760px 480px at 92% 8%, var(--glow-two), transparent 72%),
@@ -62,13 +63,19 @@
         }
 
         .error {
+            margin: auto;
             width: 100%;
             max-width: 620px;
             padding: 42px 44px 34px;
+            padding: clamp(24px, 5vw, 42px) clamp(22px, 5vw, 44px) clamp(24px, 4vw, 34px);
             background: var(--surface);
             border: 1px solid var(--line);
             border-radius: 22px;
             box-shadow: 0 32px 80px -46px rgba(16, 24, 40, 0.55);
+        }
+
+        .error--debug {
+            max-width: 960px;
         }
 
         .error__eyebrow {
@@ -96,7 +103,7 @@
             align-items: baseline;
             gap: 14px;
             margin: 0 0 6px;
-            font-size: 66px;
+            font-size: clamp(42px, 12vw, 66px);
             font-weight: 700;
             line-height: 1;
             letter-spacing: -0.045em;
@@ -205,6 +212,44 @@
             opacity: 0.82;
         }
 
+        .error__debug dl {
+            display: grid;
+            grid-template-columns: 110px 1fr;
+            gap: 6px 12px;
+            margin: 12px 0;
+            font-size: 13px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+
+        .error__debug dt {
+            font-weight: 600;
+            opacity: 0.72;
+        }
+
+        .error__debug dd {
+            margin: 0;
+            overflow-wrap: anywhere;
+        }
+
+        @media (max-width: 520px) {
+            .error__debug dl { grid-template-columns: 1fr; gap: 2px 0; }
+            .error__debug dd { margin-bottom: 6px; }
+        }
+
+        .error__debug details summary {
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            opacity: 0.72;
+        }
+
+        .error__debug details pre {
+            max-height: 320px;
+            max-height: 40svh;
+            overflow: auto;
+            margin-top: 8px;
+        }
+
         .error__hint {
             margin: 22px 0 0;
             padding-top: 18px;
@@ -222,7 +267,11 @@
     </style>
 </head>
 <body>
-    <main class="error" role="main">
+    @if (debug)
+        <main class="error error--debug" role="main">
+    @else
+        <main class="error" role="main">
+    @endif
         <p class="error__eyebrow"><span class="error__dot" aria-hidden="true"></span>SahilPHP</p>
         <p class="error__code">{{ status }}<span>{{ reason }}</span></p>
 
@@ -242,9 +291,26 @@
                     <h2>Caused by</h2>
                     <p>{{ exception_previous }}</p>
                 @endif
+                <dl>
+                    @if (request_line)
+                        <dt>Request</dt><dd>{{ request_line }}</dd>
+                    @endif
+                    @if (route)
+                        <dt>Route</dt><dd>{{ route }}</dd>
+                    @endif
+                    @if (request_id)
+                        <dt>Request ID</dt><dd>{{ request_id }}</dd>
+                    @endif
+                    @if (timestamp)
+                        <dt>Time</dt><dd>{{ timestamp }}</dd>
+                    @endif
+                </dl>
                 @if (exception_trace)
-                    <pre>@foreach (exception_trace as frame){{ frame }}
+                    <details open>
+                        <summary>Stack trace</summary>
+                        <pre>@foreach (exception_trace as frame){{ frame }}
 @endforeach</pre>
+                    </details>
                 @endif
             </section>
         @endif
