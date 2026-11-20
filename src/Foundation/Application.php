@@ -398,6 +398,18 @@ final class Application implements ApplicationContract
         self::$configured = null;
     }
 
+    /**
+     * Pin an existing application as the process-configured handle.
+     *
+     * {@see configure()} builds and pins in one step; `pin()` covers an
+     * already-constructed instance — for example a bootstrap cache that
+     * outlives a `free()` — so `app()` resolves it again.
+     */
+    public static function pin(Application $application): void
+    {
+        self::$configured = $application;
+    }
+
     private function installCoreBindings(): void
     {
         $this->container->instance(Application::class, $this);

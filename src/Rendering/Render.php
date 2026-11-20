@@ -30,7 +30,7 @@ final class Render
     {
     }
 
-    /** Render through a named environment (`html`, `vue`, `fire`, ...). */
+    /** Render through a named environment (`html`, `vue`, `react`, ...). */
     public static function to(string $environment, string $page, array $data = [], int $status = 200): Response
     {
         return self::manager()->render($environment, $page, $data, $status);
@@ -54,18 +54,6 @@ final class Render
     public static function svelte(string $page, array $data = [], int $status = 200): Response
     {
         return self::to('svelte', $page, $data, $status);
-    }
-
-    /** Canonical Firefiber environment. */
-    public static function fire(string $page, array $data = [], int $status = 200): Response
-    {
-        return self::to('fire', $page, $data, $status);
-    }
-
-    /** Firefiber alias — identical to {@see fire()}. */
-    public static function fiber(string $page, array $data = [], int $status = 200): Response
-    {
-        return self::to('fiber', $page, $data, $status);
     }
 
     public static function manager(): RenderManager

@@ -9,10 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - `RenderManager::alias()` registers an extra environment name for an
-  existing adapter, and the framework ships the `fiber` helpers that use it:
-  `Render::fiber()`, the `$this->fiber()` controller helper, and
-  `Response::fiber()` delegate to the `fiber` environment (aliased to
-  Firefiber's `fire` adapter when the package is installed).
+  existing adapter so applications can alias their own environments.
+- `Link::firefiber()` mounts a page class implementing
+  `Sahil\Contracts\Routing\MountablePageContract` (provided by Firefiber's
+  `Page`) on a GET route without a controller —
+  `Link::firefiber(HomePage::class)` uses the page's own `path()` and
+  `Link::firefiber('/posts/{id}', ShowPost::class)` mounts at an explicit
+  path template whose parameters reach the page's `show()` handler.
+- `Application::pin()` pins an existing application as the
+  process-configured handle so `app()` keeps resolving it after a
+  `free()`/bootstrap-cache cycle.
 - Designed HTML error pages: `Sahil\Http\ErrorRenderer` answers browser
   requests with a self-contained page for the status (`400`, `401`, `403`,
   `404`, `405`, `419`, `429`, `500`, `503` and generic `4xx`/`5xx` groups),
@@ -56,6 +62,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Unsupported media types still answer a machine-readable
   `{"error":"unsupported_media_type"}` 415, while a browser gets the 415
   error page.
+
+### Removed
+
+- The `fire`/`fiber` controller-render helpers (`Render::fire()`,
+  `Render::fiber()`, `Response::fire()`, `Response::fiber()` and the
+  `$this->fire()`/`$this->fiber()` controller helpers) never shipped and are
+  gone: Firefiber pages mount on the route table via `Link::firefiber()`
+  instead of being rendered from controllers.
 
 ### Fixed
 

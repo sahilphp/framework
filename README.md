@@ -441,7 +441,6 @@ $this->html($page, $data = [], $status = 200);    // native Sahil Engine
 $this->vue($page, $data, $status);                // kit adapters
 $this->react($page, $data, $status);
 $this->svelte($page, $data, $status);
-$this->fire($page, $data, $status);               // canonical Firefiber env
 $this->renderTo('my-env', $page, $data, $status); // custom environments
 ```
 
@@ -451,7 +450,15 @@ page data (an `int` keeps its original status-code meaning):
 ```php
 return Response::html('pages.school.index', ['message' => 'Hi']);
 return Response::vue('pages.school.index', $props, 201);
-return Response::fire('pages.dashboard');   // firefiber apps
+return Response::svelte('pages.dashboard'); // kit environments
+```
+
+Firefiber pages are mounted directly on the route table instead — they own
+their state, components and lifecycle, so no controller sits in between:
+
+```php
+Link::firefiber(HomePage::class);                 // uses the page's path()
+Link::firefiber('/posts/{id}', ShowPost::class);  // explicit path + params
 ```
 
 Architecture:

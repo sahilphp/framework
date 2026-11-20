@@ -6,6 +6,7 @@ namespace Sahil\Routing;
 
 use Closure;
 use InvalidArgumentException;
+use Sahil\Contracts\Routing\MountablePageContract;
 use Sahil\Http\Request;
 use Sahil\Http\Router;
 
@@ -129,6 +130,54 @@ class Link
     public static function options(string $path, Closure|array $handler): static
     {
         return new static(['OPTIONS'], $path, $handler);
+    }
+
+    /**
+     * Mount a page class on a GET route — no controller needed.
+     *
+     * Pages own their lifecycle (state, components, view); the route table
+     * points straight at them instead of going through a controller's
+     * render helpers. Any {@see MountablePageContract} implementation can
+     * be mounted — Firefiber's `Page` provides it out of the box:
+     *
+     *     Link::firefiber(HomePage::class);              // uses $page->path()
+     *     Link::firefiber('/posts/{id}', ShowPage::class); // explicit path
+     *
+     * Route parameters reach the page through its `mount(array $params)`
+     * lifecycle hook, mirroring how page components receive them in
+     * component-based frameworks.
+     *
+     * @param string $pathOrPage path template, or the page class when the
+     *                           page's own `path()` should be used
+     * @param class-string|null $page page class when the first argument is
+     *                                a path template
+     */
+    public static function firefiber(string $pathOrPage, ?string $page = null): static
+    {
+        [$path, $class] = $page === null ? [null, $pathOrPage] : [$pathOrPage, $page];
+
+        if (!is_subclass_of($class, MountablePageContract::class)) {
+            throw new InvalidArgumentException(sprintf(
+                'Link::firefiber() expects a page class implementing %s; [%s] given.',
+                MountablePageContract::class,
+                $class,
+            ));
+        }
+
+        if ($path === null) {
+            $instance = \app()->container()->make($class);
+
+            if (!$instance instanceof MountablePageContract) {
+                throw new InvalidArgumentException(sprintf(
+                    'Link::firefiber() could not resolve page [%s] through the container.',
+                    $class,
+                ));
+            }
+
+            $path = $instance->path();
+        }
+
+        return static::get($path, [$class, 'show']);
     }
 
     /**

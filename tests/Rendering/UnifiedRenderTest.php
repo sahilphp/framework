@@ -66,7 +66,6 @@ final class UnifiedRenderTest extends TestCase
             new SpyAdapter('vue'),
             new SpyAdapter('react'),
             new SpyAdapter('svelte'),
-            new SpyAdapter('fire'),
         ]);
     }
 
@@ -196,26 +195,9 @@ final class UnifiedRenderTest extends TestCase
         $manager->alias('Fiber', 'fire');
     }
 
-    public function test_render_and_response_fiber_alias_helpers(): void
-    {
-        $manager = $this->manager();
-        $manager->alias('fiber', 'fire');
-        Render::swap($manager);
-
-        self::assertSame('fire:pages.f', Render::fiber('pages.f')->body());
-
-        $response = Response::fiber('pages.dashboard', [], 201);
-
-        self::assertSame('fire:pages.dashboard', $response->body());
-        self::assertSame('fiber', $response->frontend());
-        self::assertSame(201, $response->status());
-    }
-
     public function test_controller_helpers_delegate_per_environment(): void
     {
-        $manager = $this->manager();
-        $manager->alias('fiber', 'fire');
-        Render::swap($manager);
+        Render::swap($this->manager());
 
         $controller = new class () {
             use RendersPages;
@@ -227,8 +209,6 @@ final class UnifiedRenderTest extends TestCase
                     'vue' => $this->vue('pages.v'),
                     'react' => $this->react('pages.r'),
                     'svelte' => $this->svelte('pages.s'),
-                    'fire' => $this->fire('pages.f'),
-                    'fiber' => $this->fiber('pages.fib'),
                     'custom' => $this->renderTo('vue', 'pages.custom'),
                 ];
             }
@@ -241,8 +221,6 @@ final class UnifiedRenderTest extends TestCase
         self::assertSame('vue:pages.v', $r['vue']->body());
         self::assertSame('react:pages.r', $r['react']->body());
         self::assertSame('svelte:pages.s', $r['svelte']->body());
-        self::assertSame('fire:pages.f', $r['fire']->body());
-        self::assertSame('fire:pages.fib', $r['fiber']->body());
         self::assertSame('vue:pages.custom', $r['custom']->body());
     }
 
@@ -276,17 +254,6 @@ final class UnifiedRenderTest extends TestCase
         self::assertSame('vue', $response->frontend());
         self::assertSame('pages.school.index', $response->renderedView()?->template());
         self::assertSame(['message' => 'x'], $response->renderedView()?->data());
-    }
-
-    public function test_response_fire_factory(): void
-    {
-        Render::swap($this->manager());
-
-        $response = Response::fire('pages.dashboard', [], 202);
-
-        self::assertSame('fire:pages.dashboard', $response->body());
-        self::assertSame('fire', $response->frontend());
-        self::assertSame(202, $response->status());
     }
 
     public function test_rendered_view_factory_path_preserved(): void

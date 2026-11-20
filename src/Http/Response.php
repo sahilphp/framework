@@ -131,18 +131,6 @@ final class Response
         return self::frontendResponse('svelte', $view, $options, $status);
     }
 
-    /** Firefiber response, tagged for the canonical `fire` environment. */
-    public static function fire(string|self|RenderedView $view, int|array $options = 200, int $status = 200): self
-    {
-        return self::frontendResponse('fire', $view, $options, $status);
-    }
-
-    /** Firefiber response tagged for the `fiber` alias environment. */
-    public static function fiber(string|self|RenderedView $view, int|array $options = 200, int $status = 200): self
-    {
-        return self::frontendResponse('fiber', $view, $options, $status);
-    }
-
     /**
      * Tag any response for a frontend while preserving its status, headers
      * and rendered view. Used by the named factories above.

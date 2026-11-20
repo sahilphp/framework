@@ -13,7 +13,6 @@ use Sahil\Rendering\Render;
  *
  *     return $this->html('pages.school.index', ['message' => 'Hi']);
  *     return $this->vue('pages.school.index', ['message' => 'Hi']);
- *     return $this->fire('dashboard'); // resources/views/firefiber/pages/dashboard
  *     return $this->renderTo('my-engine', 'pages.x'); // custom envs
  *
  * Every call delegates to {@see Render} — the manager and adapter resolve
@@ -40,18 +39,6 @@ trait RendersPages
     protected function svelte(string $page, array $data = [], int $status = 200): Response
     {
         return Render::svelte($page, $data, $status);
-    }
-
-    /** Canonical Firefiber render helper. */
-    protected function fire(string $page, array $data = [], int $status = 200): Response
-    {
-        return Render::fire($page, $data, $status);
-    }
-
-    /** Firefiber alias — identical to {@see fire()}. */
-    protected function fiber(string $page, array $data = [], int $status = 200): Response
-    {
-        return Render::fiber($page, $data, $status);
     }
 
     /** Generic escape hatch for environments the app registers itself. */
