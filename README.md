@@ -412,6 +412,31 @@ Guarantees:
 - HEAD requests emit the full header set (Content-Length included) with
   no body bytes.
 
+### Technology identification
+
+The HTTP kernel applies the `identification` configuration namespace to
+every response (`Sahil\Identification\Identification`):
+
+- `X-Powered-By: SahilPHP` on all responses — the framework name only,
+  never a version or server detail, and never over an application-set
+  value.
+- `<meta name="generator" content="SahilPHP[ x.y.z]">` inside documents
+  produced by `Response::html()` (rendered views, frontend documents,
+  error pages). The version comes from the installed
+  `sahilphp/framework` package; a document's own `generator` declaration
+  always wins, and arbitrary `text/html` payloads are never modified.
+
+```php
+'enabled' => true,        // master switch
+'expose_version' => true, // include the installed version in the meta tag
+'powered_by' => true,     // send the X-Powered-By header
+'version' => null,        // pin the reported version (null = installed)
+```
+
+A contribution-ready Wappalyzer fingerprint lives in
+`fingerprint/wappalyzer/`; the starter kit documents the standard in
+`docs/IDENTIFICATION.md`.
+
 
 ## Rendering pages from controllers
 

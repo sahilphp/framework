@@ -373,6 +373,7 @@ final class ErrorRenderer
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <meta name="robots" content="noindex, nofollow">
+                <meta name="generator" content="SahilPHP">
                 <title>{$status} · {$reason}</title>
                 <style>
                     :root { color-scheme: light dark; }

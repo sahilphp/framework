@@ -76,7 +76,7 @@ final class OpenApi
             ? self::swaggerHtml($specUrl, (string) $library)
             : self::nativeHtml($specUrl);
 
-        return new Response(200, ['Content-Type' => 'text/html; charset=utf-8'], $body);
+        return Response::html($body);
     }
 
     /** Reset descriptions/config/diagnostics — per-test isolation. */

@@ -63,7 +63,7 @@ final class FrontendRenderer
             $this->title($view),
         );
 
-        $finalized = new Response($response->status(), ['Content-Type' => 'text/html; charset=utf-8'], $document->html());
+        $finalized = Response::html($document->html(), $response->status());
 
         foreach ($response->headers() as $name => $values) {
             if (in_array(strtolower($name), ['content-type', 'content-length'], true)) {

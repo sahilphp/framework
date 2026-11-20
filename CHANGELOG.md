@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Framework technology identification (`Sahil\Identification`): the HTTP
+  kernel applies the configured `identification` namespace to every
+  response — `X-Powered-By: SahilPHP` on all responses and
+  `<meta name="generator" content="SahilPHP[ x.y.z]">` inside documents
+  produced by `Response::html()` (rendered views, frontend documents,
+  error pages). The installed `sahilphp/framework` version is resolved
+  from Composer metadata; `identification.enabled`,
+  `identification.expose_version`, `identification.powered_by` and
+  `identification.version` control the fingerprint. A document's own
+  `generator` declaration always wins (a bare `SahilPHP` signature is
+  completed with the installed version), and arbitrary `text/html`
+  payloads are never modified.
+- `Response::isHtmlDocument()` marks responses produced by the framework's
+  HTML document pipeline; `Response::withBody()` replaces a body while
+  preserving status, headers and document marking.
+- `fingerprint/wappalyzer/` ships a contribution-ready WebAppAnalyzer
+  (Wappalyzer) technology definition, the official icon and the vendored
+  upstream schema the test suite validates against.
 - `RenderManager::alias()` registers an extra environment name for an
   existing adapter so applications can alias their own environments.
 - `Link::firefiber()` mounts a page class implementing

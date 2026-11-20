@@ -38,6 +38,14 @@ final class Response
     private ?string $frontend = null;
 
     /**
+     * Whether this response's body was produced by the framework's HTML
+     * document pipeline ({@see html()}). The identification layer only
+     * fingerprints marked documents, so arbitrary `text/html` payloads are
+     * never modified.
+     */
+    private bool $htmlDocument = false;
+
+    /**
      * @param array<string, scalar|array<int, scalar>|null> $headers
      */
     public function __construct(int $status = 200, array $headers = [], string $body = '')
@@ -102,6 +110,7 @@ final class Response
             $rendered?->markup() ?? $body,
         );
         $response->renderedView = $rendered;
+        $response->htmlDocument = true;
 
         return $response;
     }
@@ -163,6 +172,17 @@ final class Response
     public function renderedView(): ?RenderedView
     {
         return $this->renderedView;
+    }
+
+    /**
+     * Whether this response carries a document produced by the framework's
+     * HTML pipeline. `true` for every {@see html()} response — markup or
+     * rendered view — so the identification layer can tell framework
+     * documents from arbitrary `text/html` payloads it must not touch.
+     */
+    public function isHtmlDocument(): bool
+    {
+        return $this->htmlDocument;
     }
 
     /**
@@ -299,6 +319,26 @@ final class Response
         foreach ($headers as $name => $values) {
             $clone->headers->set((string) $name, $values);
         }
+
+        return $clone;
+    }
+
+    /**
+     * Derive a new response with a replaced body (immutable derivation;
+     * status, headers, rendered view and document marking are preserved).
+     * `Content-Length` is recomputed for the new body.
+     */
+    public function withBody(string $body): self
+    {
+        if (!Status::allowsBody($this->status) && $body !== '') {
+            throw new InvalidArgumentException(
+                sprintf('Response status [%d] does not allow a body (%s).', $this->status, Status::reason($this->status)),
+            );
+        }
+
+        $clone = clone $this;
+        $clone->body = $body;
+        $clone->headers->set('Content-Length', (string) strlen($body));
 
         return $clone;
     }

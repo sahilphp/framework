@@ -1,0 +1,23 @@
+{
+    "SahilPHP": {
+        "cats": [
+            18
+        ],
+        "cookies": {
+            "sahil_session": ""
+        },
+        "description": "SahilPHP is an open-source PHP web framework with a native template engine, a unified rendering pipeline and first-party starter kits for Vue, React and Svelte.",
+        "headers": {
+            "X-Powered-By": "^SahilPHP$"
+        },
+        "icon": "SahilPHP.png",
+        "implies": [
+            "PHP"
+        ],
+        "meta": {
+            "generator": "^SahilPHP(?: ([\\d.]+))?$\\;version:\\1"
+        },
+        "oss": true,
+        "website": "https://github.com/sahilphp/sahilphp"
+    }
+}

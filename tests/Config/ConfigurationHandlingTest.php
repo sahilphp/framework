@@ -198,6 +198,37 @@ final class ConfigurationHandlingTest extends TestCase
         }
     }
 
+    public function test_identification_configuration_is_validated_at_startup(): void
+    {
+        $temporaryRoot = sys_get_temp_dir().'/sahil-stage-'.bin2hex(random_bytes(4));
+        mkdir($temporaryRoot.'/config', recursive: true);
+
+        file_put_contents($temporaryRoot.'/config/app.php', "<?php return ['environment' => 'local'];\n");
+        file_put_contents($temporaryRoot.'/config/identification.php', <<<PHP
+            <?php
+            return [
+                'enabled' => 'yes',
+                'powered_by' => true,
+            ];
+            PHP);
+
+        try {
+            $app = Application::configure($temporaryRoot);
+            $app->loadConfiguration();
+
+            self::fail('invalid identification configuration must fail startup');
+        } catch (ConfigurationException $error) {
+            self::assertStringContainsString('Configuration validation failed', $error->getMessage());
+            self::assertStringContainsString('identification.enabled must be a boolean', $error->getMessage());
+        } finally {
+            Application::free();
+            unlink($temporaryRoot.'/config/app.php');
+            unlink($temporaryRoot.'/config/identification.php');
+            rmdir($temporaryRoot.'/config');
+            rmdir($temporaryRoot);
+        }
+    }
+
     public function test_local_is_a_recognized_environment_that_allows_debug(): void
     {
         $temporaryRoot = sys_get_temp_dir().'/sahil-stage-'.bin2hex(random_bytes(4));

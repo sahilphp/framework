@@ -262,7 +262,9 @@ final class Application implements ApplicationContract
      * - `app.debug=true` + `app.environment=production` is rejected —
      *   production must never boot with request diagnostics visible,
      * = `app.timezone` (when set) must be a valid timezone identifier,
-     * - `app.log_level` (when set) must be a known severity.
+     * - `app.log_level` (when set) must be a known severity,
+     * - `identification` (when set) must satisfy
+     *   {@see \Sahil\Identification\Identification::fromArray()}.
      *
      * Every violation is reported in a single
      * {@see \Sahil\Config\ConfigurationException} so boot fails with the
@@ -308,6 +310,20 @@ final class Application implements ApplicationContract
                 'app.log_level must be one of: %s.',
                 implode(', ', \Sahil\Support\Logging\FileLogger::severityList()),
             );
+        }
+
+        $identification = $this->config->get('identification');
+
+        if ($identification !== null) {
+            if (!is_array($identification)) {
+                $violations[] = sprintf('identification must be an array, got %s.', get_debug_type($identification));
+            } else {
+                try {
+                    \Sahil\Identification\Identification::fromArray($identification);
+                } catch (\Sahil\Identification\InvalidIdentificationConfigurationException $exception) {
+                    $violations[] = $exception->getMessage();
+                }
+            }
         }
 
         if ($violations !== []) {

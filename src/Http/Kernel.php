@@ -15,6 +15,7 @@ use Sahil\Http\Exception\UnsupportedMediaTypeHttpException;
 use Sahil\Http\Middleware\MiddlewareContract;
 use Sahil\Http\Middleware\MiddlewareSpec;
 use Sahil\Http\Middleware\RouteArgument;
+use Sahil\Identification\Identification;
 use Sahil\Validation\FormInput;
 use Sahil\Validation\ValidationException;
 use Throwable;
@@ -138,15 +139,15 @@ final class Kernel
                     // The long-standing machine-readable 415 payload is kept as
                     // is; a browser gets the HTML page instead.
                     if (ErrorRenderer::expectsJson($request)) {
-                        return Response::json(['error' => 'unsupported_media_type'], 415);
+                        $response = Response::json(['error' => 'unsupported_media_type'], 415);
+                    } else {
+                        throw new UnsupportedMediaTypeHttpException();
                     }
-
-                    throw new UnsupportedMediaTypeHttpException();
+                } else {
+                    $response = $this->finalizeFrontend($this->runPipeline($request));
                 }
-
-                return $this->finalizeFrontend($this->runPipeline($request));
             } catch (HttpException $exception) {
-                return $this->handleRendered($this->renderError($exception, $request), $exception, $request);
+                $response = $this->handleRendered($this->renderError($exception, $request), $exception, $request);
             } catch (Throwable $throwable) {
                 // Validation failures are first-class responses — a 303
                 // redirect back with flashed errors/old input for
@@ -156,8 +157,10 @@ final class Kernel
                     ? $this->respondValidation($throwable, $request)
                     : $this->renderError($throwable, $request);
 
-                return $this->handleRendered($fallback, $throwable, $request);
+                $response = $this->handleRendered($fallback, $throwable, $request);
             }
+
+            return $this->identify($response);
         });
     }
 
@@ -187,6 +190,21 @@ final class Kernel
         }
 
         return $this->frontend->render($response);
+    }
+
+    /**
+     * Apply the configured framework identification fingerprint — the
+     * `X-Powered-By` header and generator metadata in framework-produced
+     * HTML documents — as the last step before the response leaves the
+     * kernel, so it covers handler, frontend and error responses alike.
+     */
+    private function identify(Response $response): Response
+    {
+        /** @var mixed $configuration */
+        $configuration = $this->application->config()->get('identification', []);
+
+        return Identification::fromArray(is_array($configuration) ? $configuration : [])
+            ->apply($response);
     }
 
     /**

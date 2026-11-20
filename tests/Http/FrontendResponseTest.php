@@ -13,8 +13,8 @@ use Sahil\Frontend\FrontendRenderer;
 use Sahil\Http\Kernel;
 use Sahil\Http\Request;
 use Sahil\Http\Response;
-use Sahil\Routing\Link;
 use Sahil\Http\Router;
+use Sahil\Routing\Link;
 use Sahil\Tests\Frontend\RecordingFrontendAdapter;
 use Sahil\View\RenderedView;
 
@@ -144,8 +144,13 @@ final class FrontendResponseTest extends TestCase
         $native = Response::html($this->view());
         $response = $this->get($this->kernel($this->renderer(), $native));
 
-        self::assertSame($native, $response);
-        self::assertSame('<main>Home</main>', $response->body());
+        // The frontend finalizer must not touch native markup — the only
+        // addition is the kernel's identification header (see
+        // IdentificationHttpTest), which applies to every response.
+        self::assertSame($native->status(), $response->status());
+        self::assertSame($native->body(), $response->body());
+        self::assertSame($native->header('Content-Type'), $response->header('Content-Type'));
+        self::assertSame('SahilPHP', $response->header('X-Powered-By'));
     }
 
     public function test_frontend_response_without_a_kernel_renderer_fails_with_configuration_error(): void
